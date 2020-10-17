@@ -111,6 +111,7 @@ class MockAdapter extends IAdapter {
     })
   }
 
+  // debounce function on update
   async updateAttribute (username, attr, value) {
     log('updateAttribute %j', { username, attr, value })
     return new Promise((resolve, reject) => {

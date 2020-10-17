@@ -97,11 +97,11 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
 
   async function modifyMw (req, res, next) {
     try {
-      console.log('%o', req.dn)
-      console.log('%j', req.changes)
+      // console.log('%o', req.dn)
+      // console.log('%j', req.changes)
 
       const username = get(req, ['dn', 'rdns', 0, 'attrs', 'cn', 'value'])
-      console.log({ username })
+      // console.log({ username })
 
       if (!username) {
         log('ERROR: NoSuchObjectError')
@@ -120,7 +120,7 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
         const mod = get(req, ['changes', i, 'modification'], {})
         const operation = get(req, ['changes', i, 'operation'])
 
-        console.log(mod, operation, mod.vals, mod._vals)
+        // console.log(mod, operation, mod.vals, mod._vals)
         switch (operation) {
           case 'replace':
             if (mod.type === 'unicodepwd' && mod.vals && mod.vals.length) {

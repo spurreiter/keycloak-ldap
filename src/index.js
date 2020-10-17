@@ -6,6 +6,9 @@ module.exports = {
 }
 
 if (module === require.main) {
+  require('../scripts/client.js')
+  require('../scripts/mail-server.js')
+
   const config = {
     port: 1389,
     bindDN: 'cn=Administrator,cn=Users,dc=example,dc=local',
@@ -18,6 +21,8 @@ if (module === require.main) {
   const server = ldapServer(config, adapter)
 
   server.listen(config.port, () => {
-    console.log(`Running on ${config.port}`)
+    var host = server.address().address
+    var port = server.address().port
+    console.log('LDAP on ldap://%s:%s', host, port)
   })
 }

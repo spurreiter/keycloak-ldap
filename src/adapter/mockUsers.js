@@ -18,7 +18,7 @@ const users = [
     mail: 'alice.adams@my.local',
     phone: '+1180180180',
     memberOf: ['test:read', 'test:write'],
-    orguuid: '8cbe965e-5481-470b-9388-8d8bf169efc5',
+    orgid: '8cbe965e-5481-470b-9388-8d8bf169efc5',
     useraccountcontrol: ADS_UF_NORMAL_ACCOUNT,
     pwdlastset: PWD_OK
   },

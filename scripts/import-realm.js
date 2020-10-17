@@ -63,10 +63,11 @@ async function importUsers (kc, users, { realm }) {
 }
 
 // create realm
-async function createRealm (kc, { realm }) {
-  const found = kc.realms.findOne({ realm })
+async function createRealm (kc, realmObj, { realm }) {
+  const found = await kc.realms.findOne({ realm })
+  // console.log('%o', found)
   if (!found) {
-    await kc.realms.create({ id: realm, realm })
+    await kc.realms.create({ ...realmObj, realm })
     log(`INFO: realm ${realm} created`)
   }
 }
@@ -76,6 +77,7 @@ async function createClientScopes (kc, clientScopes, { realm }) {
   for (const clientScope of clientScopes) {
     const { name } = clientScope
     let scope = await kc.clientScopes.findOneByName({ realm, name })
+    // console.log('%o', scope)
     if (!scope) {
       scope = await kc.clientScopes.create({ ...clientScope, realm })
       log(`INFO: clientScope ${name} created`)
@@ -88,6 +90,7 @@ async function createClients (kc, clients, { realm }) {
   for (const client of clients) {
     const { clientId } = client
     const found = await kc.clients.find({ realm, clientId })
+    // console.log('%o', found)
     if (!found || !found.length) {
       await kc.clients.create({ ...client, realm })
       log(`INFO: client ${clientId} created`)
@@ -100,14 +103,26 @@ async function createUserFederation (kc, components, { realm }) {
   // const found = await kc.components.find({ realm })
   // console.log('%o', found)
   // return
-  for (const component of components) {
+
+  let id
+
+  for (let component of components) {
+    if (typeof component === 'function') {
+      component = component(id)
+    }
     const { name } = component
     const found = await kc.components.find({ realm, name })
     // console.log('%o', found)
-    console.log('%s %s', name, (found && found.length))
+    log('INFO: %s %s', name, (found && found.length))
     if (!found || !found.length) {
-      const created = await kc.components.create({ ...component, realm }).catch(() => {})
-      console.log('%o', created)
+      const created = await kc.components.create({ ...component, realm })
+        .catch((err) => console.error('ERROR: %s', err.message))
+      // console.log('%o', created)
+      if (name === 'my-ldap') {
+        id = created.id
+      }
+    } else if (name === 'my-ldap') {
+      id = found[0].id
     }
   }
 }
@@ -116,11 +131,11 @@ async function main () {
   const { realm } = config
   const kc = await client(config)
   await setAdmin(kc, realmCnf.adminUser)
+  await createRealm(kc, realmCnf.realmObj, { realm })
   try {
     // can't import users for that realm if user federation is set
     await importUsers(kc, realmCnf.users, { realm })
   } catch (e) {}
-  await createRealm(kc, { realm })
   await createClientScopes(kc, realmCnf.clientScopes, { realm })
   await createClients(kc, realmCnf.clients, { realm })
   await createUserFederation(kc, realmCnf.components, { realm })

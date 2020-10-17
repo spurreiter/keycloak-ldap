@@ -39,6 +39,109 @@ const users = [{
   }
 }]
 
+const realmObj = {
+  id: 'my',
+  realm: 'my',
+  notBefore: 0,
+  revokeRefreshToken: false,
+  refreshTokenMaxReuse: 0,
+  accessTokenLifespan: 300,
+  accessTokenLifespanForImplicitFlow: 900,
+  ssoSessionIdleTimeout: 1800,
+  ssoSessionMaxLifespan: 36000,
+  ssoSessionIdleTimeoutRememberMe: 0,
+  ssoSessionMaxLifespanRememberMe: 0,
+  offlineSessionIdleTimeout: 2592000,
+  offlineSessionMaxLifespanEnabled: false,
+  offlineSessionMaxLifespan: 5184000,
+  clientSessionIdleTimeout: 0,
+  clientSessionMaxLifespan: 0,
+  clientOfflineSessionIdleTimeout: 0,
+  clientOfflineSessionMaxLifespan: 0,
+  accessCodeLifespan: 60,
+  accessCodeLifespanUserAction: 300,
+  accessCodeLifespanLogin: 1800,
+  actionTokenGeneratedByAdminLifespan: 43200,
+  actionTokenGeneratedByUserLifespan: 300,
+  enabled: true,
+  sslRequired: 'external',
+  registrationAllowed: false,
+  registrationEmailAsUsername: false,
+  rememberMe: true,
+  verifyEmail: false,
+  loginWithEmailAllowed: true,
+  duplicateEmailsAllowed: false,
+  resetPasswordAllowed: true,
+  editUsernameAllowed: false,
+  bruteForceProtected: false,
+  permanentLockout: false,
+  maxFailureWaitSeconds: 900,
+  minimumQuickLoginWaitSeconds: 60,
+  waitIncrementSeconds: 60,
+  quickLoginCheckMilliSeconds: 1000,
+  maxDeltaTimeSeconds: 43200,
+  failureFactor: 30,
+  defaultRoles: ['offline_access', 'uma_authorization'],
+  requiredCredentials: ['password'],
+  otpPolicyType: 'totp',
+  otpPolicyAlgorithm: 'HmacSHA1',
+  otpPolicyInitialCounter: 0,
+  otpPolicyDigits: 6,
+  otpPolicyLookAheadWindow: 1,
+  otpPolicyPeriod: 30,
+  otpSupportedApplications: ['FreeOTP', 'Google Authenticator'],
+  webAuthnPolicyRpEntityName: 'keycloak',
+  webAuthnPolicySignatureAlgorithms: ['ES256'],
+  webAuthnPolicyRpId: '',
+  webAuthnPolicyAttestationConveyancePreference: 'not specified',
+  webAuthnPolicyAuthenticatorAttachment: 'not specified',
+  webAuthnPolicyRequireResidentKey: 'not specified',
+  webAuthnPolicyUserVerificationRequirement: 'not specified',
+  webAuthnPolicyCreateTimeout: 0,
+  webAuthnPolicyAvoidSameAuthenticatorRegister: false,
+  webAuthnPolicyAcceptableAaguids: [],
+  webAuthnPolicyPasswordlessRpEntityName: 'keycloak',
+  webAuthnPolicyPasswordlessSignatureAlgorithms: ['ES256'],
+  webAuthnPolicyPasswordlessRpId: '',
+  webAuthnPolicyPasswordlessAttestationConveyancePreference: 'not specified',
+  webAuthnPolicyPasswordlessAuthenticatorAttachment: 'not specified',
+  webAuthnPolicyPasswordlessRequireResidentKey: 'not specified',
+  webAuthnPolicyPasswordlessUserVerificationRequirement: 'not specified',
+  webAuthnPolicyPasswordlessCreateTimeout: 0,
+  webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister: false,
+  webAuthnPolicyPasswordlessAcceptableAaguids: [],
+  browserSecurityHeaders: {
+    contentSecurityPolicyReportOnly: '',
+    xContentTypeOptions: 'nosniff',
+    xRobotsTag: 'none',
+    xFrameOptions: 'SAMEORIGIN',
+    contentSecurityPolicy: "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    xXSSProtection: '1; mode=block',
+    strictTransportSecurity: 'max-age=31536000; includeSubDomains'
+  },
+  smtpServer: {},
+  eventsEnabled: false,
+  eventsListeners: ['jboss-logging'],
+  enabledEventTypes: [],
+  adminEventsEnabled: false,
+  adminEventsDetailsEnabled: false,
+  internationalizationEnabled: false,
+  supportedLocales: [],
+  browserFlow: 'browser',
+  registrationFlow: 'registration',
+  directGrantFlow: 'direct grant',
+  resetCredentialsFlow: 'reset credentials',
+  clientAuthenticationFlow: 'clients',
+  dockerAuthenticationFlow: 'docker auth',
+  attributes: {
+    clientOfflineSessionMaxLifespan: '0',
+    clientSessionIdleTimeout: '0',
+    clientSessionMaxLifespan: '0',
+    clientOfflineSessionIdleTimeout: '0'
+  },
+  userManagedAccessAllowed: false
+}
+
 const clientScopes = [{
   name: 'my-custom-claim',
   description: 'OpenID Connect custom claim "my"',
@@ -48,34 +151,35 @@ const clientScopes = [{
     'display.on.consent.screen': 'false',
     'consent.screen.text': ''
   },
-  protocolMappers: [{
-    name: 'userId',
-    protocol: 'openid-connect',
-    protocolMapper: 'oidc-usermodel-property-mapper',
-    consentRequired: false,
-    config: {
-      'user.attribute': 'userId',
-      'claim.name': 'my.userId',
-      'userinfo.token.claim': 'true',
-      'id.token.claim': 'true',
-      'access.token.claim': 'true',
-      'jsonType.label': 'String'
+  protocolMappers: [
+    {
+      name: 'user id',
+      protocol: 'openid-connect',
+      protocolMapper: 'oidc-usermodel-attribute-mapper',
+      consentRequired: false,
+      config: {
+        'userinfo.token.claim': 'true',
+        'user.attribute': 'userId',
+        'id.token.claim': 'true',
+        'access.token.claim': 'true',
+        'claim.name': 'my.user_id',
+        'jsonType.label': 'String'
+      }
+    },
+    {
+      name: 'org id',
+      protocol: 'openid-connect',
+      protocolMapper: 'oidc-usermodel-attribute-mapper',
+      consentRequired: false,
+      config: {
+        'userinfo.token.claim': 'true',
+        'user.attribute': 'orgId',
+        'id.token.claim': 'true',
+        'access.token.claim': 'true',
+        'claim.name': 'my.org_id',
+        'jsonType.label': 'String'
+      }
     }
-  },
-  {
-    name: 'orgId',
-    protocol: 'openid-connect',
-    protocolMapper: 'oidc-usermodel-property-mapper',
-    consentRequired: false,
-    config: {
-      'user.attribute': 'orgId',
-      'claim.name': 'my.orgId',
-      'userinfo.token.claim': 'true',
-      'id.token.claim': 'true',
-      'access.token.claim': 'true',
-      'jsonType.label': 'String'
-    }
-  }
   ]
 }]
 
@@ -363,9 +467,11 @@ const components = [
       'user.model.attribute': ['modifyTimestamp']
     }
   },
-  {
+  // NEEDS MANUAL SETUP
+  (id) => ({
     name: 'orgid',
     providerId: 'user-attribute-ldap-mapper',
+    parentId: id,
     config: {
       'ldap.attribute': ['orgId'],
       'is.mandatory.in.ldap': ['false'],
@@ -373,10 +479,11 @@ const components = [
       'always.read.value.from.ldap': ['true'],
       'user.model.attribute': ['orgId']
     }
-  },
-  {
+  }),
+  (id) => ({
     name: 'userid',
     providerId: 'user-attribute-ldap-mapper',
+    parentId: id,
     config: {
       'ldap.attribute': ['userId'],
       'is.mandatory.in.ldap': ['false'],
@@ -384,12 +491,13 @@ const components = [
       'always.read.value.from.ldap': ['true'],
       'user.model.attribute': ['userId']
     }
-  }
+  })
 ]
 
 module.exports = {
   users,
   adminUser,
+  realmObj,
   clientScopes,
   clients,
   components
