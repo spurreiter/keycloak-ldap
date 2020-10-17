@@ -362,8 +362,7 @@ const components = [
       'always.read.value.from.ldap': ['true'],
       'user.model.attribute': ['modifyTimestamp']
     }
-  }
-  /*
+  },
   {
     name: 'orgid',
     providerId: 'user-attribute-ldap-mapper',
@@ -386,7 +385,6 @@ const components = [
       'user.model.attribute': ['userId']
     }
   }
-  */
 ]
 
 module.exports = {
