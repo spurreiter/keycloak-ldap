@@ -7,9 +7,9 @@
   "author": "",
   "main": "src/index.js",
   "scripts": {
-    "dev": "DEBUG=@my* nodemon src/index.js",
+    "dev": "DEBUG=@my* nodemon src/dev.js",
     "lint": "eslint --fix '**/*.js'",
-    "start": "node src/index.js",
+    "start": "node src/dev.js",
     "test": "mocha"
   },
   "dependencies": {
