@@ -1,7 +1,8 @@
 const { IAdapter } = require('./interface.js')
+const { uuid4 } = require('../utils.js')
 const log = require('../log.js').log('MockAdapter')
-
 const users = require('./mockUsers.js')
+const { ADS_UF_NORMAL_ACCOUNT } = require('./constants.js')
 
 function reduce (arr, by) {
   return arr.reduce((map, item) => {
@@ -120,8 +121,35 @@ class MockAdapter extends IAdapter {
         reject(new Error('user not found'))
         return
       }
+      switch (attr) {
+        case 'emailverified': {
+          value = value !== 'false'
+          break
+        }
+        case 'useraccountcontrol': {
+          value = Number(value) || ADS_UF_NORMAL_ACCOUNT
+          break
+        }
+        case 'pwdlastset': {
+          value = Number(value)
+          break
+        }
+      }
+
       user[attr] = value
+
       this._usernames.set(username, user)
+      resolve()
+    })
+  }
+
+  async register (username, attributes) {
+    log('register %j', { username })
+    return new Promise((resolve, reject) => {
+      this._usernames.set(username, {
+        objectguid: uuid4(),
+        username
+      })
       resolve()
     })
   }

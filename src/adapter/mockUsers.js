@@ -20,7 +20,8 @@ const users = [
     memberOf: ['test:read', 'test:write'],
     orgid: '8cbe965e-5481-470b-9388-8d8bf169efc5',
     useraccountcontrol: ADS_UF_NORMAL_ACCOUNT,
-    pwdlastset: PWD_OK
+    pwdlastset: PWD_OK,
+    emailverified: false
   },
   {
     objectguid: '98ac4b01-a63f-4425-9f7c-a8a3d23b052d',
@@ -34,7 +35,8 @@ const users = [
     memberOf: ['test:read'],
     orgid: '8cbe965e-5481-470b-9388-8d8bf169efc5',
     useraccountcontrol: ADS_UF_NORMAL_ACCOUNT,
-    pwdlastset: PWD_OK
+    pwdlastset: PWD_OK,
+    emailverified: true
   },
   {
     objectguid: 'f17beb47-7ab2-445b-97df-864e118d9d34',
@@ -48,7 +50,8 @@ const users = [
     memberOf: ['test:write'],
     orgid: '8cbe965e-5481-470b-9388-8d8bf169efc5',
     useraccountcontrol: ADS_UF_NORMAL_ACCOUNT,
-    pwdlastset: PWD_OK
+    pwdlastset: PWD_OK,
+    emailverified: true
   }
 ]
 

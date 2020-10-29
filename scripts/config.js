@@ -5,7 +5,7 @@ const {
 } = process.env
 
 const config = {
-  keycloakVersion: KEYCLOAK_VERSION || '11.0.2',
+  keycloakVersion: KEYCLOAK_VERSION || '11.0.3',
   baseUrl: 'http://localhost:8080/auth',
   realm: 'my',
   // Keycloak admin user and password - !!! CHANGE THIS !!!

@@ -35,7 +35,7 @@ function setup () {
     }),
     keycloak.middleware({
       logout: '/logout',
-      admin: '/',
+      admin: '/admin',
       protected: '/protected/resource'
     })
   )
@@ -48,9 +48,11 @@ function setup () {
 }
 
 function logger (req, res, next) {
+  let body = ''
+  req.on('data', chunk => { body += chunk.toString() })
   res.once('finish', () => {
     const { method, url } = req
-    log('%s %s %s', res.statusCode, method, url)
+    log('%s %s %s %s', res.statusCode, method, url, body)
   })
   next()
 }

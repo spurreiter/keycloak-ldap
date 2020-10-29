@@ -36,6 +36,7 @@ async function dockerRun () {
     `-e KEYCLOAK_USER=${config.username}`,
     `-e KEYCLOAK_PASSWORD=${config.password}`,
     '-e KEYCLOAK_IMPORT=/tmp/my-realm.json',
+    '-e KEYCLOAK_LOGLEVEL=DEBUG',
     `-v ${__dirname}/my-realm.json:/tmp/my-realm.json`
   ]
 

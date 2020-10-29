@@ -3,6 +3,8 @@ const ldap = require('ldapjs')
 const log = require('./log.js').log('ldapServer')
 const { splitFilter, getUsernameFromCn, get, unicodepwd } = require('./utils.js')
 
+const getUsername = (req, cn = 'cn') => get(req, ['dn', 'rdns', 0, 'attrs', cn, 'value'])
+
 function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
   // ---- middlewares ----
 
@@ -30,10 +32,9 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
     try {
       const dn = req.dn.toString()
       const filtered = splitFilter(req.filter.toString())
-
-      log({ msg: 'searchMw', dn, filtered, attributes: req.attributes })
-
       const username = filtered.samaccountname || filtered.cn
+
+      log({ msg: 'searchMw', dn, filtered, attributes: req.attributes, username })
 
       if (username) {
         const obj = await adapter.searchUsername(username)
@@ -70,6 +71,7 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
       res.end()
       next()
     } catch (e) {
+      console.log('search error', e)
       next(e)
     }
   }
@@ -97,11 +99,10 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
 
   async function modifyMw (req, res, next) {
     try {
-      // console.log('%o', req.dn)
-      // console.log('%j', req.changes)
+      log('modifyMw %j', req.dn)
+      log('modifyMw %j', req.changes)
 
-      const username = get(req, ['dn', 'rdns', 0, 'attrs', 'cn', 'value'])
-      // console.log({ username })
+      const username = getUsername(req, 'cn') || getUsername(req, 'samaccountname')
 
       if (!username) {
         log('ERROR: NoSuchObjectError')
@@ -120,7 +121,8 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
         const mod = get(req, ['changes', i, 'modification'], {})
         const operation = get(req, ['changes', i, 'operation'])
 
-        // console.log(mod, operation, mod.vals, mod._vals)
+        log(mod, operation, mod.vals, mod._vals)
+
         switch (operation) {
           case 'replace':
             if (mod.type === 'unicodepwd' && mod.vals && mod.vals.length) {
@@ -151,6 +153,31 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
     }
   }
 
+  async function registerMw (req, res, next) {
+    const dn = req.dn.toString()
+    const attributes = req.toObject().attributes
+    let username = (attributes.samaccountname || attributes.cn)
+    if (Array.isArray(username)) {
+      username = username[0]
+    }
+
+    log({ msg: 'registerMw', dn, attributes, username })
+
+    const obj = await adapter.searchUsername(username)
+    if (obj) {
+      next(new ldap.EntryAlreadyExistsError(dn))
+      return
+    }
+    try {
+      await adapter.register(username)
+      res.end()
+      next()
+      return
+    } catch (e) {
+      next(new ldap.EntryAlreadyExistsError(dn))
+    }
+  }
+
   // ----
 
   const server = ldap.createServer()
@@ -159,9 +186,35 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
 
   server.search(suffix, authorizeMw, searchMw)
 
+  server.search('ou=RealmRoles,dc=example,dc=local', authorizeMw, (req, res, next) => {
+    const dn = req.dn.toString()
+    const filtered = splitFilter(req.filter.toString())
+    const cn = filtered.cn
+    log({ msg: 'searchMw', dn, filtered, attributes: req.attributes })
+    res.send({
+      dn: 'ou=RealmRoles,dc=example,dc=local',
+      attributes: {
+        cn
+      }
+    })
+    res.end()
+    next()
+  })
+  server.modify('ou=RealmRoles,dc=example,dc=local', authorizeMw, (req, res, next) => {
+    log('ou dn %o', req.dn.toString())
+    req.changes.forEach(function (c) {
+      log('  operation: ' + c.operation)
+      log('  modification: ' + c.modification.toString())
+    })
+    res.end()
+    next()
+  })
+
   server.bind(suffix, loginMw)
 
   server.modify(suffix, authorizeMw, modifyMw)
+
+  server.add(suffix, authorizeMw, registerMw)
 
   return server
 }

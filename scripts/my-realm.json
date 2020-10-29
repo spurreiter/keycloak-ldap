@@ -24,10 +24,10 @@
   "actionTokenGeneratedByUserLifespan": 300,
   "enabled": true,
   "sslRequired": "external",
-  "registrationAllowed": false,
+  "registrationAllowed": true,
   "registrationEmailAsUsername": false,
   "rememberMe": true,
-  "verifyEmail": false,
+  "verifyEmail": true,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
@@ -644,7 +644,7 @@
     "starttls": "",
     "auth": "false",
     "port": "1025",
-    "host": "localhost",
+    "host": "host.docker.internal",
     "from": "admin@my.local",
     "ssl": ""
   },
@@ -700,14 +700,14 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
+            "saml-user-attribute-mapper",
+            "oidc-usermodel-property-mapper",
             "saml-user-property-mapper",
-            "oidc-full-name-mapper",
             "saml-role-list-mapper",
+            "oidc-sha256-pairwise-sub-mapper",
             "oidc-usermodel-attribute-mapper",
             "oidc-address-mapper",
-            "oidc-sha256-pairwise-sub-mapper",
-            "saml-user-attribute-mapper",
-            "oidc-usermodel-property-mapper"
+            "oidc-full-name-mapper"
           ]
         }
       },
@@ -743,14 +743,14 @@
         "subComponents": {},
         "config": {
           "allowed-protocol-mapper-types": [
+            "oidc-full-name-mapper",
+            "saml-user-attribute-mapper",
             "oidc-usermodel-attribute-mapper",
+            "oidc-address-mapper",
             "saml-user-property-mapper",
             "saml-role-list-mapper",
-            "oidc-sha256-pairwise-sub-mapper",
-            "oidc-address-mapper",
             "oidc-usermodel-property-mapper",
-            "oidc-full-name-mapper",
-            "saml-user-attribute-mapper"
+            "oidc-sha256-pairwise-sub-mapper"
           ]
         }
       },
@@ -858,10 +858,10 @@
                 "is.mandatory.in.ldap": [
                   "true"
                 ],
-                "always.read.value.from.ldap": [
+                "read.only": [
                   "false"
                 ],
-                "read.only": [
+                "always.read.value.from.ldap": [
                   "false"
                 ],
                 "user.model.attribute": [
@@ -916,6 +916,29 @@
               }
             },
             {
+              "id": "8e9b840d-a713-462e-b186-3aea9afc0bae",
+              "name": "email verified",
+              "providerId": "user-attribute-ldap-mapper",
+              "subComponents": {},
+              "config": {
+                "ldap.attribute": [
+                  "emailverified"
+                ],
+                "is.mandatory.in.ldap": [
+                  "false"
+                ],
+                "is.binary.attribute": [
+                  "false"
+                ],
+                "read.only": [
+                  "false"
+                ],
+                "user.model.attribute": [
+                  "emailVerified"
+                ]
+              }
+            },
+            {
               "id": "73ddfc0a-a3d1-4a38-afba-2ba2caced887",
               "name": "role mapper",
               "providerId": "role-ldap-mapper",
@@ -933,11 +956,11 @@
                 "user.roles.retrieve.strategy": [
                   "GET_ROLES_FROM_USER_MEMBEROF_ATTRIBUTE"
                 ],
-                "membership.user.ldap.attribute": [
-                  "cn"
-                ],
                 "membership.ldap.attribute": [
                   "member"
+                ],
+                "membership.user.ldap.attribute": [
+                  "cn"
                 ],
                 "role.name.ldap.attribute": [
                   "cn"
@@ -1008,11 +1031,11 @@
           "fullSyncPeriod": [
             "-1"
           ],
-          "usersDn": [
-            "cn=Users,dc=example,dc=local"
-          ],
           "connectionPooling": [
             "true"
+          ],
+          "usersDn": [
+            "cn=Users,dc=example,dc=local"
           ],
           "cachePolicy": [
             "DEFAULT"
@@ -1021,19 +1044,19 @@
             "false"
           ],
           "importEnabled": [
-            "false"
+            "true"
           ],
           "enabled": [
             "true"
+          ],
+          "usernameLDAPAttribute": [
+            "cn"
           ],
           "bindDn": [
             "cn=Administrator,cn=Users,dc=example,dc=local"
           ],
           "changedSyncPeriod": [
             "-1"
-          ],
-          "bindCredential": [
-            "ldap-password"
           ],
           "usernameLDAPAttribute": [
             "cn"
@@ -1045,7 +1068,7 @@
             "objectGUID"
           ],
           "connectionUrl": [
-            "ldap://localhost:1389"
+            "ldap://host.docker.internal:1389"
           ],
           "allowKerberosAuthentication": [
             "false"
