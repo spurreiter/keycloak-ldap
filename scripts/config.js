@@ -1,11 +1,12 @@
 const {
-  KEYCLOAK_VERSION,
+  KEYCLOAK_VERSION = '12.0.4',
   KEYCLOAK_USER,
   KEYCLOAK_PASSWORD
 } = process.env
 
 const config = {
-  keycloakVersion: KEYCLOAK_VERSION || '11.0.3',
+  keycloakVersion: KEYCLOAK_VERSION,
+  image: 'keycloak-ldap',
   baseUrl: 'http://localhost:8080/auth',
   realm: 'my',
   // Keycloak admin user and password - !!! CHANGE THIS !!!

@@ -1,3 +1,7 @@
+/**
+ * mock mail server
+ */
+
 const { simpleParser } = require('mailparser')
 const { SMTPServer } = require('smtp-server')
 
@@ -94,7 +98,8 @@ async function processMailData (stream, session, callback) {
   this.addMTAFields(parsed)
   for (var i = 0; i < mboxes.length; i++) {
     log.info('save mail to [' + mboxes[i] + ']')
-    console.log(mboxes[i], parsed)
+    const { text, to, from } = parsed
+    console.log(mboxes[i], { text, to, from })
   }
   callback()
   log.debug('processMailData() - done')

@@ -2,12 +2,12 @@
 
 const fs = require('fs')
 const { execSync } = require('child_process')
-const { keycloakVersion } = require('./config.js')
 const execOpts = { stdio: 'inherit' }
+const config = require('./config.js')
 
 // remove annoying entrypoint
 const dockerfile = `
-FROM jboss/keycloak:${keycloakVersion}
+FROM jboss/keycloak:${config.keycloakVersion}
 
 ENTRYPOINT []
 
@@ -20,7 +20,7 @@ async function dockerBuild () {
   execSync([
     'docker build',
     `-f ${filename}`,
-    `-t my/keycloak:${keycloakVersion}`,
+    `-t ${config.image}:${config.keycloakVersion}`,
     '.'
   ].join(' '), execOpts)
   fs.unlinkSync(filename)

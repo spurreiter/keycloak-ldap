@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 
+/**
+ * express application with keycloak authentication
+ */
+
 const express = require('express')
 const session = require('express-session')
 const Keycloak = require('keycloak-connect')

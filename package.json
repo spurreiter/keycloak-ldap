@@ -1,33 +1,43 @@
 {
-  "name": "@my/keycloak-ldap",
-  "version": "1.0.0",
+  "name": "@spurreiter/keycloak-ldap",
+  "version": "1.0.0-0",
   "description": "",
   "keywords": [],
-  "license": "MIT",
+  "homepage": "https://github.com/spurreiter/keycloak-ldap",
+  "license": "Apache-2.0",
   "author": "",
   "main": "src/index.js",
   "scripts": {
-    "dev": "DEBUG=@my* nodemon src/dev.js",
+    "all": "npm run lint && npm t",
+    "coverage": "c8 -r text -r html npm t",
+    "dev": "DEBUG_LEVEL=debug DEBUG=keycloak-ldap* nodemon src/dev.js",
     "lint": "eslint --fix '**/*.js'",
     "start": "node src/dev.js",
     "test": "mocha"
   },
   "dependencies": {
-    "ldapjs": "^2.2.0"
+    "body-parser": "^1.19.0",
+    "debug-level": "^0.3.2",
+    "express": "^4.17.1",
+    "ldapjs": "^2.2.0",
+    "nedb": "^1.8.0"
   },
   "devDependencies": {
+    "c8": "^7.3.4",
     "eslint": "^7.11.0",
     "eslint-config-standard": "^14.1.1",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.1",
-    "express": "^4.17.1",
+    "express-basic-auth": "^1.2.0",
     "express-session": "^1.17.1",
     "keycloak-admin": "^1.13.0",
     "keycloak-connect": "^11.0.2",
     "mailparser": "^3.0.0",
     "mocha": "^8.2.0",
-    "smtp-server": "^3.7.0"
+    "sinon": "^10.0.0",
+    "smtp-server": "^3.7.0",
+    "supertest": "^6.1.3"
   }
 }

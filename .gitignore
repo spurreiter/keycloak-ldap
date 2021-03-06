@@ -1,4 +1,9 @@
 /node_modules
 /tmp
+/coverage
 *.tgz
 *.log
+
+todo.md 
+extensions-java 
+extensions-js

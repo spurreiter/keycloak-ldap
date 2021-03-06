@@ -1,7 +1,18 @@
 const assert = require('assert')
-const { splitFilter, getUsernameFromCn, unicodepwd } = require('../src/utils.js')
+const { distName, splitFilter, getUsernameFromCn, unicodepwd } = require('../src/utils.js')
 
 describe('utils', function () {
+  describe('distName', function () {
+    it('shall build distName', function () {
+      const r = distName({ cn: ['Administrator', 'Users'], ou: 'Roles', dc: 'example.local' })
+      assert.strictEqual(r, 'cn=Administrator,cn=Users,ou=Roles,dc=example,dc=local')
+    })
+    it('shall build distName without ou', function () {
+      const r = distName({ cn: ['Users'], dc: 'example.local' })
+      assert.strictEqual(r, 'cn=Users,dc=example,dc=local')
+    })
+  })
+
   describe('splitFilter', function () {
     it('shall split filter', () => {
       const dn = '(&(objectclass=person)(objectclass=organizationalperson)(objectclass=user))'

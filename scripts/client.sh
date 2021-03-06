@@ -1,10 +1,14 @@
 #!/bin/bash
 
+# script to login with client credentials using
+# request header mapper
+
 curl -X POST -v \
-  -d "client_id=my-server" \
-  -d "client_secret=af5c5f89-8977-482f-9eca-eae83c7f3d0d" \
-  --data-urlencode "grant_type=client_credentials" \
+  -H "x-org-id: 57a5cb16-1344-470f-8168-24666af9605e" \
+  -H "x-tenant-id: 57a5cb16-1344-470f-8168-24666af9605e" \
+  -d "client_id=my-client" \
+  -d "client_secret=0ab9a3ab-2a1a-408d-8898-e3ce6fc97df0" \
+  -d "grant_type=client_credentials" \
   -d "scope=openid" \
   http://localhost:8080/auth/realms/my/protocol/openid-connect/token \
-
-  #| jwtdecode
+| jwtdecode

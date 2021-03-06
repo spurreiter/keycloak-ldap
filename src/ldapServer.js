@@ -1,25 +1,58 @@
 
 const ldap = require('ldapjs')
 const log = require('./log.js').log('ldapServer')
-const { splitFilter, getUsernameFromCn, get, unicodepwd } = require('./utils.js')
+const {
+  get,
+  getUsernameFromCn,
+  getUsernameFromReq,
+  splitFilter,
+  unicodepwd,
+  // userToLdap,
+  roleToLdap
+} = require('./utils.js')
+const { createLdapUserMap, LdapUserMapper } = require('./LdapUserMapper.js')
+const { MSAD_ERR_INVALID_PASSWORD } = require('./constants.js')
 
-const getUsername = (req, cn = 'cn') => get(req, ['dn', 'rdns', 0, 'attrs', cn, 'value'])
+/**
+ * ldap Server
+ * @param {object} param0
+ * @param {string} param0.bindDN - bind distinguished name (admin username)
+ * @param {string} param0.bindPassword - password of bind distinguished name
+ * @param {Suffix} param0.suffix - suffix for users and roles
+ * @param {Adapter} adapter - data adapter
+ * @return {LdapServer}
+ */
+function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
+  const suffixUsers = suffix.suffixUsers()
+  const suffixRoles = suffix.suffixRoles()
+  const ldapUserMap = createLdapUserMap({ suffix, mapper })
 
-function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
   // ---- middlewares ----
 
+  /**
+   * authorize middleware
+   * @param {Request} req
+   * @param {Response} res
+   * @param {Function} next
+   */
   function authorizeMw (req, res, next) {
     let err
     if (!req.connection.ldap.bindDN.equals(bindDN)) {
-      log('error: insufficient access rights')
+      log.error('InsufficientAccessRightsError for %s', bindDN)
       err = new ldap.InsufficientAccessRightsError()
     }
     next(err)
   }
 
+  /**
+   * bind middleware
+   * @param {Request} req
+   * @param {Response} res
+   * @param {Function} next
+   */
   function bindMw (req, res, next) {
     if (!req.dn.equals(bindDN) || req.credentials !== bindPassword) {
-      log(`error: invalid credentials for ${req.dn.toString()} using ${req.credentials}`)
+      log.error('InvalidCredentialsError for %s', req.dn.toString())
       const err = new ldap.InvalidCredentialsError()
       next(err)
     } else {
@@ -28,40 +61,53 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
     }
   }
 
+  /**
+   * search middleware
+   * @param {Request} req
+   * @param {Response} res
+   * @param {Function} next
+   */
   async function searchMw (req, res, next) {
     try {
       const dn = req.dn.toString()
       const filtered = splitFilter(req.filter.toString())
       const username = filtered.samaccountname || filtered.cn
 
-      log({ msg: 'searchMw', dn, filtered, attributes: req.attributes, username })
+      log.debug('searchMw', { dn, filtered, attributes: req.attributes, username })
 
       if (username) {
-        const obj = await adapter.searchUsername(username)
-        log(obj)
-        if (obj) {
-          res.send(obj)
+        // search by username
+        const user = await adapter.searchUsername(username)
+        if (user) {
+          log.info('searchMw user %s found', username)
+          const ldap = new LdapUserMapper(ldapUserMap, user).toLdap()
+          log.debug(ldap)
+          res.send(ldap)
+        } else {
+          log.warn('searchMw user %s not found', username)
         }
       } else if (filtered.mail) {
-        const obj = await adapter.searchMail(filtered.mail)
-        log(obj)
-        if (obj) {
-          res.send(obj)
+        // search by mail
+        const user = await adapter.searchMail(filtered.mail)
+        if (user && user.username) {
+          log.info('searchMw user %s found by email %s', user.username, filtered.mail)
+          const ldap = new LdapUserMapper(ldapUserMap, user).toLdap()
+          log.debug(ldap)
+          res.send(ldap)
+        } else {
+          log.warn('searchMw email %s not found', filtered.mail)
         }
       } else if (filtered.objectclass === 'group') {
-        // filtered: { objectclass: 'group' }
-        // attributes: [ 'member', 'objectguid', 'cn', 'objectclass' ]
-        console.log('%j', req)
-        // TODO
-        ;['test:read', 'test:write'].forEach(group => {
-          res.send({
-            dn: `cn=${group},${suffix}`,
-            attributes: {
-              cn: group
-            }
-          })
+        // search by group
+        log.debug('%j', req)
+        const roles = await adapter.syncAllRoles()
+        roles.forEach(role => {
+          const ldap = roleToLdap(role)
+          log.debug(ldap)
+          res.send(ldap)
         })
       } else {
+        // synchronize all users
         const users = await adapter.syncAllUsers()
         users.forEach(user => {
           res.send(user)
@@ -71,11 +117,17 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
       res.end()
       next()
     } catch (e) {
-      console.log('search error', e)
+      log.error('search error', e)
       next(e)
     }
   }
 
+  /**
+   * called when user tries to log in
+   * @param {Request} req
+   * @param {Response} res
+   * @param {Function} next
+   */
   async function loginMw (req, res, next) {
     try {
       const dn = req.dn.toString()
@@ -85,7 +137,7 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
       const isValid = await adapter.verifyPassword(username, req.credentials)
 
       if (!isValid) {
-        log(`error: invalid credentials for ${username}`)
+        log.error(`InvalidCredentialsError for ${username}`)
         next(new ldap.InvalidCredentialsError())
         return
       }
@@ -97,42 +149,58 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
     }
   }
 
+  /**
+   * update user attributes and password
+   * @param {Request} req
+   * @param {Response} res
+   * @param {Function} next
+   */
   async function modifyMw (req, res, next) {
-    try {
-      log('modifyMw %j', req.dn)
-      log('modifyMw %j', req.changes)
+    let newPassword
 
-      const username = getUsername(req, 'cn') || getUsername(req, 'samaccountname')
+    try {
+      // log.debug('modifyMw %j %j', req.dn, req.changes)
+      const username = getUsernameFromReq(req, 'cn') || getUsernameFromReq(req, 'samaccountname')
 
       if (!username) {
-        log('ERROR: NoSuchObjectError')
+        log.error('NoSuchObjectError')
         const err = new ldap.NoSuchObjectError(req.dn.toString()) // TODO: change
         next(err)
         return
       }
       if (!req.changes.length) {
-        log('ERROR: ProtocolError')
+        log.error('ProtocolError')
         const err = new ldap.ProtocolError('changes required')
         next(err)
         return
       }
 
+      let attributes = null
+
       for (var i = 0; i < req.changes.length; i++) {
         const mod = get(req, ['changes', i, 'modification'], {})
         const operation = get(req, ['changes', i, 'operation'])
 
-        log(mod, operation, mod.vals, mod._vals)
+        // log.debug(mod, operation, mod.vals, mod._vals)
 
         switch (operation) {
           case 'replace':
             if (mod.type === 'unicodepwd' && mod.vals && mod.vals.length) {
-              const newPassword = unicodepwd(mod._vals[0])
-              await adapter.updatePassword(username, newPassword)
+              newPassword = unicodepwd(mod._vals[0])
             } else if (mod.type === 'userpassword' && mod.vals && mod.vals.length) {
-              const newPassword = mod.vals[0]
-              await adapter.updatePassword(username, newPassword)
+              newPassword = mod.vals[0]
             } else if (mod.type && mod.vals && mod.vals.length) {
-              await adapter.updateAttribute(username, mod.type, mod.vals[0])
+              if (!attributes) attributes = {}
+              const attr = mod.type
+              const value = mod.vals[0]
+              log.debug('replace %s %s', attr, value)
+              if (attributes[attr] === undefined) {
+                // keycloak shows a nasty behavior. If attributes are updated via account
+                // then emailverified is set to false here to be immediately updated with
+                // emailverified=true which is bad as we haven't verified the mail yet
+                // therefore only the first update value for a given attribute is choosen
+                attributes[attr] = value
+              }
             } else {
               next(new ldap.UnwillingToPerformError('replace with missing value not allowed'))
               return
@@ -145,14 +213,38 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
         }
       }
 
+      if (newPassword) {
+        log.info('updating password for user %s', username)
+        await adapter.updatePassword(username, newPassword)
+        newPassword = undefined
+      }
+
+      if (attributes) {
+        log.info('updating attributes for user %s', username)
+        const converted = new LdapUserMapper(ldapUserMap).update(attributes).get()
+        await adapter.updateAttributes(username, converted)
+      }
+
       res.end()
       next()
     } catch (err) {
-      log('ERROR: OperationsError %s', err)
-      next(new ldap.OperationsError('password reset failed'))
+      const msg = (
+        (newPassword)
+          ? MSAD_ERR_INVALID_PASSWORD
+          : 'attribute update failed'
+      ) + err.message
+
+      log.error('UnwillingToPerformError %s', msg)
+      next(new ldap.UnwillingToPerformError(msg))
     }
   }
 
+  /**
+   * register new user middleware
+   * @param {Request} req
+   * @param {Response} res
+   * @param {Function} next
+   */
   async function registerMw (req, res, next) {
     const dn = req.dn.toString()
     const attributes = req.toObject().attributes
@@ -161,7 +253,7 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
       username = username[0]
     }
 
-    log({ msg: 'registerMw', dn, attributes, username })
+    log.debug('registerMw', { dn, attributes, username })
 
     const obj = await adapter.searchUsername(username)
     if (obj) {
@@ -178,43 +270,69 @@ function ldapServer ({ bindDN, bindPassword, suffix }, adapter) {
     }
   }
 
+  /**
+   * search for available roles middleware
+   * @param {Request} req
+   * @param {Response} res
+   * @param {Function} next
+   */
+  async function searchRolesMw (req, res, next) {
+    const dn = req.dn.toString()
+    const filtered = splitFilter(req.filter.toString())
+    const cn = filtered.cn
+    log.debug({ msg: 'searchRealmRoles', dn, filtered, attributes: req.attributes })
+    const role = await adapter.searchRole(cn)
+    if (role) {
+      log.info('searchRolesMw role %s found', role)
+      const ldap = {
+        dn: suffix.suffixRoles(),
+        attributes: {
+          cn
+        }
+      }
+      res.send(ldap)
+    } else {
+      log.warn('searchRolesMw role %s not found', filtered.cn)
+    }
+    res.end()
+    next()
+  }
+
+  /**
+   * modify roles middleware - TODO
+   * @param {Request} req
+   * @param {Response} res
+   * @param {Function} next
+   */
+  async function modifyRolesMw (req, res, next) {
+    // TODO - check what needs to be done here
+    log.debug('modifyRealmRoles dn %o', req.dn.toString())
+    req.changes.forEach(function (c) {
+      log.debug('  operation: ' + c.operation)
+      log.debug('  modification: ' + c.modification.toString())
+    })
+    // return nothing...
+    res.end()
+    next()
+  }
+
   // ----
 
   const server = ldap.createServer()
 
   server.bind(bindDN, bindMw)
 
-  server.search(suffix, authorizeMw, searchMw)
+  server.search(suffixUsers, authorizeMw, searchMw)
 
-  server.search('ou=RealmRoles,dc=example,dc=local', authorizeMw, (req, res, next) => {
-    const dn = req.dn.toString()
-    const filtered = splitFilter(req.filter.toString())
-    const cn = filtered.cn
-    log({ msg: 'searchMw', dn, filtered, attributes: req.attributes })
-    res.send({
-      dn: 'ou=RealmRoles,dc=example,dc=local',
-      attributes: {
-        cn
-      }
-    })
-    res.end()
-    next()
-  })
-  server.modify('ou=RealmRoles,dc=example,dc=local', authorizeMw, (req, res, next) => {
-    log('ou dn %o', req.dn.toString())
-    req.changes.forEach(function (c) {
-      log('  operation: ' + c.operation)
-      log('  modification: ' + c.modification.toString())
-    })
-    res.end()
-    next()
-  })
+  server.bind(suffixUsers, loginMw)
 
-  server.bind(suffix, loginMw)
+  server.modify(suffixUsers, authorizeMw, modifyMw)
 
-  server.modify(suffix, authorizeMw, modifyMw)
+  server.add(suffixUsers, authorizeMw, registerMw)
 
-  server.add(suffix, authorizeMw, registerMw)
+  server.search(suffixRoles, authorizeMw, searchRolesMw)
+
+  server.modify(suffixRoles, authorizeMw, modifyRolesMw)
 
   return server
 }

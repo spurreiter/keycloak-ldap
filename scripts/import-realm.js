@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 
+/**
+ * script to setup realm
+ */
+
 const KcAdmin = require('keycloak-admin').default
 const config = require('./config.js')
 const realmCnf = require('./realm.js')

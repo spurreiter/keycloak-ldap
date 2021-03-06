@@ -1,0 +1,25 @@
+version: "3.8"
+services:
+  # https://github.com/osixia/docker-openldap
+  ldap.example.org:
+    hostname: ldap.example.org
+    image: osixia/openldap:1.4.0
+    ports:
+      - "3389:389"
+      - "3636:636"
+    environment:
+      LDAP_TLS: "false"
+      # LDAP_ORGANISATION: myorg
+      # LDAP_DOMAIN: my.org
+      # LDAP_ADMIN_PASSWORD: admin
+  admin:
+    image: osixia/phpldapadmin:0.9.0
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: ldap.example.org
+      PHPLDAPADMIN_LDAP_CLIENT_TLS: "false"
+      # PHPLDAPADMIN_HTTPS: "false"
+    ports:
+      - "6443:443"
+    links:
+      - "ldap.example.org"
+    # env_file: .env-local

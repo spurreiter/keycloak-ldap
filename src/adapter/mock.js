@@ -1,32 +1,216 @@
+const Datastore = require('nedb')
 const { IAdapter } = require('./interface.js')
 const { uuid4 } = require('../utils.js')
 const log = require('../log.js').log('MockAdapter')
-const users = require('./mockUsers.js')
-const { ADS_UF_NORMAL_ACCOUNT } = require('./constants.js')
+const { users, roles } = require('./mockUsers.js')
+const { PasswordPolicy } = require('../PasswordPolicy.js')
+const {
+  ADS_UF_NORMAL_ACCOUNT,
+  PWD_OK,
+  PWD_UPDATE_ON_NEXT_LOGIN
+} = require('../constants.js')
 
-function reduce (arr, by) {
-  return arr.reduce((map, item) => {
-    map.set(item[by], item)
-    return map
-  }, new Map())
-}
-
-function getUser (user, suffix) {
-  const { userpassword, memberOf, ...rest } = user
-  const { username, objectguid } = user
-  if (memberOf) {
-    rest.memberOf = memberOf.map(group => `cn=${group},ou=RealmRoles,dc=example,dc=local`)
+class MockDataStore {
+  constructor (opts) {
+    this.data = new Datastore(opts)
   }
-  return {
-    dn: `cn=${username},${suffix}`,
-    attributes: {
-      userpassword, // TODO: remove
-      samaccountname: username,
-      cn: username,
-      ...rest,
-      userid: objectguid
+
+  insert (items) {
+    return new Promise((resolve, reject) => {
+      this.data.insert(items, (err) => {
+        if (err) reject(err)
+        else resolve()
+      })
+    })
+  }
+
+  update (query, item) {
+    return new Promise((resolve, reject) => {
+      this.data.update(query, item, (err, count, isUpsert) => {
+        if (err) reject(err)
+        else resolve({ count, isUpsert })
+      })
+    })
+  }
+
+  async upsert (query, item) {
+    const { count } = await this.update(query, item)
+    if (!count) {
+      return this.insert([item])
     }
   }
+
+  find (query) {
+    return new Promise((resolve, reject) => {
+      this.data.find(query, (err, docs) => {
+        if (err) reject(err)
+        else resolve(docs)
+      })
+    })
+  }
+
+  findOne (query) {
+    return new Promise((resolve, reject) => {
+      this.data.findOne(query, (err, doc) => {
+        if (err) reject(err)
+        else resolve(doc)
+      })
+    })
+  }
+
+  remove (query) {
+    return new Promise((resolve, reject) => {
+      this.data.remove(query, (err, count) => {
+        if (err) reject(err)
+        else resolve(count)
+      })
+    })
+  }
+}
+
+// ---
+
+class MockAdapter extends IAdapter {
+  constructor (opts) {
+    super(opts)
+    this._users = new MockDataStore()
+    this._users.insert(users)
+    this._roles = roles
+    this._policy = new PasswordPolicy({
+      minLength: 3,
+      minDigits: 0,
+      minLowerChars: 1,
+      minUpperChars: 0,
+      minSpecialChars: 0,
+      notUsername: false
+    })
+    this._mfa = new MockDataStore()
+  }
+
+  searchUsername (username) {
+    return this._users.findOne({ username })
+      .catch(err => {
+        log.error(err)
+        // return undefined here - not the error
+      })
+  }
+
+  searchMail (mail) {
+    return this._users.findOne({ mail })
+      .catch(err => {
+        log.error(err)
+        // return undefined here - not the error
+      })
+  }
+
+  async searchRole (role) {
+    const hasRole = this._roles.includes(role)
+    if (hasRole) {
+      return role
+    }
+  }
+
+  syncAllUsers () {
+    return this._users.find({})
+  }
+
+  async syncAllRoles () {
+    return this._roles
+  }
+
+  async verifyPassword (username, password) {
+    log.debug({ username, password })
+    const user = await this.searchUsername(username)
+    const { userpassword } = user
+
+    if (user.accountExpiresAt) {
+      const expiresAt = new Date(user.accountExpiresAt)
+      if (expiresAt > new Date()) {
+        return
+      }
+    }
+
+    const isValid = await validatePassword(userpassword, password)
+    log.debug({ username, isValid })
+
+    if (isValid) {
+      user.lastLogonAt = new Date().getTime()
+    } else {
+      // TODO log failed login attempts
+    }
+    this._users.update({ username }, user)
+
+    return isValid
+  }
+
+  async updatePassword (username, newPassword) {
+    log.debug('updatePassword %j', { username, newPassword })
+    const user = await this.searchUsername(username)
+
+    if (!user) {
+      return Promise.reject(new Error('user not found'))
+    }
+
+    const violatesPwdPolicyErr = this._policy.validate(newPassword, { username })
+    if (violatesPwdPolicyErr) {
+      return Promise.reject(violatesPwdPolicyErr)
+    }
+
+    user.userpassword = newPassword
+    user.pwdLastSet = PWD_OK
+    user.lastPwdSetAt = new Date()
+
+    await this._users.update({ username }, user)
+  }
+
+  async updateAttributes (username, attributes) {
+    log.debug('updateAttributes: %j', { username, attributes })
+    const user = await this.searchUsername(username)
+    if (!user) {
+      return Promise.reject(new Error('user not found'))
+    }
+
+    Object.entries(attributes).forEach(([attr, value]) => {
+      user[attr] = value
+    })
+
+    return this._users.update({ username }, user)
+  }
+
+  async register (username) {
+    log.debug('register %j', { username })
+
+    const _user = await this.searchUsername(username)
+    if (_user) {
+      return Promise.reject(new Error('user already exists'))
+    }
+
+    const user = {
+      objectguid: uuid4(),
+      whencreated: Date.now(),
+      useraccountcontrol: ADS_UF_NORMAL_ACCOUNT,
+      pwdlastset: PWD_UPDATE_ON_NEXT_LOGIN,
+      username
+    }
+
+    return this._users.insert([user])
+  }
+
+  upsertMfa (mfa) {
+    return this._mfa.upsert({ id: mfa.id }, mfa)
+  }
+
+  searchMfa (id) {
+    return this._mfa.findOne({ id })
+  }
+
+  removeMfa (id) {
+    return this._mfa.remove({ id })
+  }
+}
+
+module.exports = {
+  MockAdapter
 }
 
 function toArray (str) {
@@ -43,119 +227,12 @@ function timingSafeEqual (_a, _b) {
   return (diff === 0)
 }
 
-class MockAdapter extends IAdapter {
-  constructor ({ suffix }) {
-    super()
-    this._suffix = suffix
-    this._usernames = reduce(users, 'username')
-    this._mails = reduce(users, 'mail')
-  }
-
-  async searchUsername (username) {
-    return new Promise((resolve) => {
-      const user = this._usernames.get(username)
-      if (user) {
-        const obj = getUser(user, this._suffix)
-        resolve(obj)
-      } else {
-        resolve()
-      }
-    })
-  }
-
-  async searchMail (mail) {
-    return new Promise((resolve) => {
-      const user = this._mails.get(mail)
-      if (user) {
-        const obj = getUser(user, this._suffix)
-        resolve(obj)
-      } else {
-        resolve()
-      }
-    })
-  }
-
-  async syncAllUsers () {
-    log('syncAllUsers')
-    return new Promise((resolve) => {
-      const users = Array.from(this._usernames.values())
-        .map(user => getUser(user, this._suffix))
-      resolve(users)
-    })
-  }
-
-  async verifyPassword (username, password) {
-    log({ username, password })
-    return new Promise((resolve) => {
-      const user = this._usernames.get(username)
-      const { userpassword } = user
+// simulate password comparison
+function validatePassword (userpassword, password) {
+  return new Promise(resolve => {
+    setTimeout(() => {
       const isValid = timingSafeEqual(userpassword, password)
-      log({ username, isValid })
-      // simulate hash calc
-      setTimeout(() => {
-        resolve(isValid)
-      }, 300)
-    })
-  }
-
-  async updatePassword (username, newPassword) {
-    log('updatePassword %j', { username, newPassword })
-    return new Promise((resolve, reject) => {
-      const user = this._usernames.get(username)
-      if (!user) {
-        reject(new Error('user not found'))
-        return
-      }
-      user.userpassword = newPassword
-      this._usernames.set(username, user)
-      resolve()
-    })
-  }
-
-  // debounce function on update
-  async updateAttribute (username, attr, value) {
-    log('updateAttribute %j', { username, attr, value })
-    return new Promise((resolve, reject) => {
-      const user = this._usernames.get(username)
-      if (!user) {
-        reject(new Error('user not found'))
-        return
-      }
-      switch (attr) {
-        case 'emailverified': {
-          value = value !== 'false'
-          break
-        }
-        case 'useraccountcontrol': {
-          value = Number(value) || ADS_UF_NORMAL_ACCOUNT
-          break
-        }
-        case 'pwdlastset': {
-          value = Number(value)
-          break
-        }
-      }
-
-      user[attr] = value
-
-      this._usernames.set(username, user)
-      resolve()
-    })
-  }
-
-  async register (username, attributes) {
-    log('register %j', { username })
-    return new Promise((resolve, reject) => {
-      this._usernames.set(username, {
-        objectguid: uuid4(),
-        username
-      })
-      resolve()
-    })
-  }
-}
-
-module.exports = {
-  MockAdapter,
-  getUser
+      resolve(isValid)
+    }, 300)
+  })
 }

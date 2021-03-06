@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# script for token exchange
+# use with ./exchange.sh <access_token>
+
 token="$1"
 
 curl -X POST -v \
