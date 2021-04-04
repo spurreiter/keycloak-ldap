@@ -199,11 +199,16 @@ class LdapUserMapper {
 
   /**
    * get ldap user object
+   * @param {string[]} attributes - required attributes
    * @return {[type]}
    */
-  toLdap () {
+  toLdap (attributes) {
+    const hasAttributes = attributes && attributes.length
     const user = Object.entries(this.user).reduce((o, [key, val]) => {
       const attr = this.mapperToLdap[key] || key
+      if (hasAttributes && attr !== 'cn' && !attributes.includes(attr)) {
+        return o
+      }
       if (GENERALIZED_TIME.includes(attr)) {
         val = toLdapTimestamp(val)
       }
@@ -216,7 +221,7 @@ class LdapUserMapper {
 
     // omit userpassword in LDAP response
     const { _id, userpassword, memberof, ...rest } = user
-    const { cn, uid, objectguid } = user
+    const { cn } = user
     if (memberof) {
       rest.memberof = memberof.map(group => this.suffix.suffixRoles(group))
     }
@@ -225,8 +230,7 @@ class LdapUserMapper {
       attributes: {
         samaccountname: cn,
         cn: cn,
-        ...rest,
-        uid: uid || objectguid
+        ...rest
       }
     }
 

@@ -1,3 +1,5 @@
+const { uuid4 } = require('./utils.js')
+
 const {
   ADS_UF_NORMAL_ACCOUNT,
   ADS_UF_PASSWD_NOTREQD,
@@ -8,6 +10,9 @@ const {
   PWD_UPDATE_ON_NEXT_LOGIN
 } = require('./constants.js')
 
+/**
+ * FIXME: custom LDAP mapping is not yet considered
+ */
 class Account {
   /**
    * @param {object} opts 
@@ -98,6 +103,17 @@ class Account {
   passwordInValid (user) {
     user.badPasswordTime = Date.now()
     user.badPwdCount = (user.badPwdCount || 0) + 1
+    return user
+  }
+
+  register (username) {
+    const user = {
+      objectGUID: uuid4(),
+      whenCreated: Date.now(),
+      userAccountControl: ADS_UF_NORMAL_ACCOUNT,
+      pwdLastSet: PWD_UPDATE_ON_NEXT_LOGIN,
+      username
+    }
     return user
   }
 }

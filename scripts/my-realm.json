@@ -1942,6 +1942,9 @@
           "org.keycloak.storage.ldap.mappers.LDAPStorageMapper": [
             {
               "config": {
+                "always.read.value.from.ldap": [
+                  "true"
+                ],
                 "is.binary.attribute": [
                   "false"
                 ],
@@ -1949,7 +1952,7 @@
                   "true"
                 ],
                 "ldap.attribute": [
-                  "userid"
+                  "uid"
                 ],
                 "read.only": [
                   "true"
@@ -1960,6 +1963,32 @@
               },
               "id": "d2af564b-595a-4a9b-9831-b9191dd2b3e0",
               "name": "userId",
+              "providerId": "user-attribute-ldap-mapper",
+              "subComponents": {}
+            },
+            {
+              "config": {
+                "always.read.value.from.ldap": [
+                  "true"
+                ],
+                "is.binary.attribute": [
+                  "false"
+                ],
+                "is.mandatory.in.ldap": [
+                  "false"
+                ],
+                "ldap.attribute": [
+                  "preferredlanguage"
+                ],
+                "read.only": [
+                  "true"
+                ],
+                "user.model.attribute": [
+                  "locale"
+                ]
+              },
+              "id": "eb41e66b-7422-4042-b82f-65c68e668294",
+              "name": "locale",
               "providerId": "user-attribute-ldap-mapper",
               "subComponents": {}
             },
@@ -2148,6 +2177,9 @@
             },
             {
               "config": {
+                "always.read.value.from.ldap": [
+                  "false"
+                ],
                 "is.binary.attribute": [
                   "false"
                 ],
@@ -2155,7 +2187,7 @@
                   "true"
                 ],
                 "ldap.attribute": [
-                  "orgid"
+                  "oid"
                 ],
                 "read.only": [
                   "true"
@@ -2228,7 +2260,7 @@
   "groups": [],
   "id": "my",
   "internationalizationEnabled": false,
-  "keycloakVersion": "11.0.3",
+  "keycloakVersion": "12.0.4",
   "loginWithEmailAllowed": true,
   "maxDeltaTimeSeconds": 43200,
   "maxFailureWaitSeconds": 900,
@@ -2631,14 +2663,6 @@
       "security-admin-console": []
     },
     "realm": [
-      {
-        "attributes": {},
-        "clientRole": false,
-        "composite": false,
-        "containerId": "my",
-        "id": "5e93bae6-a6df-42dc-8261-a2c2683dd2f0",
-        "name": "test:read"
-      },
       {
         "attributes": {},
         "clientRole": false,

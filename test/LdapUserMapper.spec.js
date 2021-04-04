@@ -110,12 +110,47 @@ describe('LdapUserMapper', function () {
             memberof: [
               'cn=test:read,ou=Roles,dc=example,dc=local',
               'cn=test:write,ou=Roles,dc=example,dc=local'
-            ],
-            uid: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd'
+            ]
           }
         }
       )
       cache.ldap = res
+    })
+
+    it('shall convert user object with selected attributes', function () {
+      const ldapUserMap = createLdapUserMap({ suffix })
+      const res = new LdapUserMapper(ldapUserMap, user).toLdap([
+        'objectguid',
+        'whencreated',
+        'givenname',
+        'sn',
+        'mail',
+        'useraccountcontrol',
+        'pwdlastset',
+        'orgid',
+        'memberof'
+      ])
+      // console.log(res)
+      assert.deepStrictEqual(res,
+        {
+          dn: 'cn=alice,cn=Users,dc=example,dc=local',
+          attributes: {
+            samaccountname: 'alice',
+            cn: 'alice',
+            objectguid: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd',
+            whencreated: '20201001120000Z',
+            givenname: 'Alice',
+            sn: 'Adams',
+            mail: 'alice.adams@my.local',
+            useraccountcontrol: 512,
+            pwdlastset: -1,
+            memberof: [
+              'cn=test:read,ou=Roles,dc=example,dc=local',
+              'cn=test:write,ou=Roles,dc=example,dc=local'
+            ]
+          }
+        }
+      )
     })
 
     it('shall convert it back', function () {
@@ -131,8 +166,7 @@ describe('LdapUserMapper', function () {
         orgId: '8cbe965e-5481-470b-9388-8d8bf169efc5',
         userAccountControl: 512,
         pwdLastSet: -1,
-        emailVerified: true,
-        uid: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd'
+        emailVerified: true
       })
     })
 

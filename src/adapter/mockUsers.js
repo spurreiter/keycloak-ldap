@@ -14,10 +14,10 @@ const users = [
     whenCreated: new Date('2020-10-01T12:00:00+00:00').getTime(),
     whenChanged: 0,
     username: 'alice',
-    givenName: 'Alice', // =firstname givenName
-    familyName: 'Adams', // =lastname
+    firstName: 'Alice',
+    name: 'Adams',
     middleName: undefined,
-    preferredLanguage: 'en',
+    language: 'en',
     userPassword: 'alice', // read-only value
     mail: 'alice.adams@my.local',
     emailVerified: true,
@@ -25,8 +25,9 @@ const users = [
     mobileVerified: false,
     memberOf: ['test:read', 'test:write'],
     orgId: '8cbe965e-5481-470b-9388-8d8bf169efc5',
-    useraccountcontrol: ADS_UF_NORMAL_ACCOUNT,
+    userAccountControl: ADS_UF_NORMAL_ACCOUNT,
     pwdLastSet: PWD_OK,
+    pwdLastSetAt: Date.now(),
     badPasswordTime: 0,
     badPwdCount: 0
   },
@@ -34,31 +35,37 @@ const users = [
     objectGUID: '98ac4b01-a63f-4425-9f7c-a8a3d23b052d',
     whenCreated: new Date('2020-10-01T12:10:00+00:00').getTime(),
     username: 'bob',
-    givenName: 'Bob',
-    familyName: 'Builder',
+    firstName: 'Bob',
+    name: 'Builder',
+    language: 'fr',
     userPassword: 'bob',
     mail: 'bob.builder@my.local',
+    emailVerified: false,
     mobile: '+1180180181',
+    mobileVerified: false,
     memberOf: ['test:read'],
     orgId: '8cbe965e-5481-470b-9388-8d8bf169efc5',
-    useraccountcontrol: ADS_UF_NORMAL_ACCOUNT,
-    pwdLastSet: PWD_OK,
-    emailverified: false
+    userAccountControl: ADS_UF_NORMAL_ACCOUNT,
+    pwdLastSet: PWD_OK
+    // pwdLastSetAt: Date.now(),
   },
   {
     objectGUID: 'f17beb47-7ab2-445b-97df-864e118d9d34',
     whenCreated: new Date('2020-10-01T12:15:00+00:00').getTime(),
     username: 'charly',
-    givenName: 'Charly',
-    familyName: 'Chambers',
+    firstName: 'Charly',
+    name: 'Chambers',
+    language: 'es',
     userPassword: 'charly',
     mail: 'charly.chanbers@my.local',
-    phone: '+1180180182',
+    emailVerified: true,
+    mobile: '+1180180182',
+    mobileVerified: false,
     memberOf: ['test:write'],
     orgId: '8cbe965e-5481-470b-9388-8d8bf169efc5',
-    useraccountcontrol: ADS_UF_NORMAL_ACCOUNT,
+    userAccountControl: ADS_UF_NORMAL_ACCOUNT,
     pwdLastSet: PWD_UPDATE_ON_NEXT_LOGIN,
-    emailverified: true
+    pwdLastSetAt: Date.now() - 8640000
   }
 ]
 

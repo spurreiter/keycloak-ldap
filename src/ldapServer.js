@@ -81,7 +81,7 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
         const user = await adapter.searchUsername(username)
         if (user) {
           log.info('searchMw user %s found', username)
-          const ldap = new LdapUserMapper(ldapUserMap, user).toLdap()
+          const ldap = new LdapUserMapper(ldapUserMap, user).toLdap(req.attributes)
           log.debug(ldap)
           res.send(ldap)
         } else {
@@ -92,7 +92,7 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
         const user = await adapter.searchMail(filtered.mail)
         if (user && user[attrUsername]) {
           log.info('searchMw user %s found by email %s', user[attrUsername], filtered.mail)
-          const ldap = new LdapUserMapper(ldapUserMap, user).toLdap()
+          const ldap = new LdapUserMapper(ldapUserMap, user).toLdap(req.attributes)
           log.debug(ldap)
           res.send(ldap)
         } else {

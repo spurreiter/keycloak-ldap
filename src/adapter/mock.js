@@ -1,15 +1,9 @@
 const Datastore = require('nedb')
 const { IAdapter } = require('./interface.js')
-const { uuid4 } = require('../utils.js')
 const log = require('../log.js').log('MockAdapter')
 const { users, roles } = require('./mockUsers.js')
 const { PasswordPolicy } = require('../PasswordPolicy.js')
 const { Account } = require('../Account.js')
-const {
-  ADS_UF_NORMAL_ACCOUNT,
-  PWD_OK,
-  PWD_UPDATE_ON_NEXT_LOGIN
-} = require('../constants.js')
 
 class MockDataStore {
   constructor (opts) {
@@ -90,8 +84,10 @@ class MockAdapter extends IAdapter {
   }
 
   checkUser (user) {
-    if (user && !this._account.isExpired(user)) { 
+    if (user && !this._account.isExpired(user)) {
       this._account.passwordResetNeeded(user)
+      // assign other data
+      user.uid = user.objectGUID
       return user
     }
     return null
@@ -196,13 +192,7 @@ class MockAdapter extends IAdapter {
       return Promise.reject(new Error('user already exists'))
     }
 
-    const user = {
-      objectguid: uuid4(),
-      whencreated: Date.now(),
-      useraccountcontrol: ADS_UF_NORMAL_ACCOUNT,
-      pwdlastset: PWD_UPDATE_ON_NEXT_LOGIN,
-      username
-    }
+    const user = this._account.register(username)
 
     return this._users.insert([user])
   }
