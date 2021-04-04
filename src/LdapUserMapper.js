@@ -1,33 +1,65 @@
-const { ADS_UF_NORMAL_ACCOUNT, PWD_UPDATE_ON_NEXT_LOGIN } = require('./constants.js')
+const { 
+  ADS_UF_NORMAL_ACCOUNT,
+  PWD_UPDATE_ON_NEXT_LOGIN
+} = require('./constants.js')
 const { toNumber } = require('./utils.js')
 
-// attribute mapper
+
+/**
+ * attribute mapper
+ * LDAP-name (all in lowercase!) <-> field from user-model
+ * see server-spi-private/src/main/java/org/keycloak/models/LDAPConstants.java
+ */
 const attributeMapper = {
-  // ldap name -- key from user model
-  emailverified: 'emailVerified',
-  givenname: 'givenname',
-  mail: 'mail',
+  objectguid: 'objectGUID', // read only
+  whencreated: 'createdAt', // creation time stamp
+  whenchanged: 'updatedAt', // update time stamp
+  // user-data
+  uid: 'uid',
+  cn: 'username',
+  givenname: 'firstName',
+  sn: 'name',
+  middlename: 'middleName',
+  nickname: 'nickName',
+  gender: 'gender',
+  preferredlanguage: 'language',
+  timezone: 'timezone',
   memberof: 'memberOf',
-  objectguid: 'objectGuid',
-  orgid: 'orgId',
-  phone: 'phone',
+  oid: 'orgId', // organisation Id - non-standard
+  dateofbirth: 'dateOfBirth', // YYYY-MM-DD
+  // devices
+  mail: 'mail',
+  emailverified: 'emailVerified', // non-standard
+  mobile: 'mobile',
+  mobileverified: 'mobileVerified',
+  // account-data
+  useraccountcontrol: 'userAccountControl',
+  userpassword: 'userPassword', // (hashed) user password
   pwdlastset: 'pwdLastSet',
-  sn: 'sn',
-  useraccountcontrol: 'useraccountcontrol',
-  username: 'username',
-  userpassword: 'userpassword', // (hashed) user password
-  whencreated: 'whenCreated', // creation time stamp
-  whenchanged: 'whenChanged', // update time stamp
-  lastlogon: 'lastLogonAt', // last logon time stamp
-  lastpwdset: 'lastPwdSetAt', // password last changed time stamp
-  accountexpires: 'accountExpiresAt' // account expiry time stamp
+  badpasswordtime: 'badPasswordTime', // interval
+  badpwdcount: 'badPwdCount',
+  accountexpires: 'accountExpiresAt' // interval
 }
 
-const TIMESTAMPS = [
+const READONLY_ATTRS = [
+  'objectguid',
+  'samaccountname',
   'whencreated',
   'whenchanged',
-  'lastlogon',
-  'lastpwdset',
+  'badpasswordtime',
+  'badpwdcount',
+  'accountexpires',
+  'memberof' // FIXME: Filter out only the cn
+]
+
+const GENERALIZED_TIME = [
+  'whencreated',
+  'whenchanged'
+]
+
+const JAN1601 = 11644473600000 // milliseconds since 1601-01-01 till 1970-01-01
+const INTERVAL_TIME = [
+  'badpasswordtime',
   'accountexpires'
 ]
 
@@ -44,6 +76,14 @@ function toLdapTimestamp (date) {
   return ts
 }
 
+function toLdapInterval (date) {
+  if (date === undefined) return
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return
+  const ts = (d.getTime() + JAN1601) * 10 // 100ns intervals
+  return ts
+}
+
 /**
  * normalize attribute before update
  * @param  {string} attr - attribute
@@ -52,6 +92,7 @@ function toLdapTimestamp (date) {
  */
 const normalizeAttribute = (attr, value) => {
   switch (attr) {
+    case 'mobileverified':
     case 'emailverified': {
       value = value !== 'false'
       break
@@ -130,13 +171,15 @@ class LdapUserMapper {
   /**
    * update ldap attributes
    * @param {object} ldapAttributes
+   * @param {boolean} [doPassReadonly] - do not filter readonly values
    * @return {this}
    */
-  update (ldapAttributes) {
+  update (ldapAttributes, doPassReadonly) {
     if (!this.user) {
       throw new Error('no user')
     }
     Object.entries(ldapAttributes).forEach(([attr, val]) => {
+      if (!doPassReadonly && READONLY_ATTRS.includes(attr)) return
       const key = this.mapper[attr] || attr
       this.user[key] = normalizeAttribute(attr, val)
     })
@@ -152,8 +195,11 @@ class LdapUserMapper {
 
     const user = Object.entries(this.user).reduce((o, [key, val]) => {
       const attr = this.mapperToLdap[key] || key
-      if (TIMESTAMPS.includes(attr)) {
+      if (GENERALIZED_TIME.includes(attr)) {
         val = toLdapTimestamp(val)
+      }
+      if (INTERVAL_TIME.includes(attr)) {
+        val = toLdapInterval(val)
       }
       o[attr] = val
       return o
@@ -161,17 +207,17 @@ class LdapUserMapper {
 
     // omit userpassword in LDAP response
     const { _id, userpassword, memberof, ...rest } = user
-    const { username, objectguid } = user
+    const { cn, uid, objectguid } = user
     if (memberof) {
       rest.memberof = memberof.map(group => this.suffix.suffixRoles(group))
     }
     const ldap = {
-      dn: this.suffix.suffixUsers(username), // `cn=${username},${suffix}`,
+      dn: this.suffix.suffixUsers(cn), // `cn=${username},${suffix}`,
       attributes: {
-        samaccountname: username,
-        cn: username,
+        samaccountname: cn,
+        cn: cn,
         ...rest,
-        userid: objectguid
+        uid: uid || objectguid
       }
     }
 
@@ -182,5 +228,6 @@ class LdapUserMapper {
 module.exports = {
   createLdapUserMap,
   LdapUserMapper,
-  toLdapTimestamp
+  toLdapTimestamp,
+  toLdapInterval
 }

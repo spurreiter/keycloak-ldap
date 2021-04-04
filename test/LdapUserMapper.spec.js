@@ -1,6 +1,6 @@
 const assert = require('assert')
 const { Suffix } = require('../src/Suffix.js')
-const { toLdapTimestamp, LdapUserMapper, createLdapUserMap } = require('../src/LdapUserMapper.js')
+const { toLdapTimestamp, toLdapInterval, LdapUserMapper, createLdapUserMap } = require('../src/LdapUserMapper.js')
 const {
   ADS_UF_NORMAL_ACCOUNT,
   PWD_OK
@@ -27,59 +27,100 @@ describe('LdapUserMapper', function () {
     })
   })
 
+  describe('toLdapInterval', function () {
+    const date = new Date('2020-11-02T12:34:56Z')
+
+    it('shall return on undefined', function () {
+      assert.strictEqual(toLdapInterval(), undefined)
+    })
+    it('shall return on non date value', function () {
+      assert.strictEqual(toLdapInterval('##'), undefined)
+    })
+    it('shall convert number value', function () {
+      assert.strictEqual(toLdapInterval(date.getTime()), 132487940960000)
+    })
+    it('shall convert string value', function () {
+      assert.strictEqual(toLdapInterval(date.toISOString()), 132487940960000)
+    })
+    it('shall convert date value', function () {
+      assert.strictEqual(toLdapInterval(date), 132487940960000)
+    })
+  })
+
   describe('LdapUserMapper', function () {
+    const cache = {}
+
     const user = {
-      objectGuid: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd',
-      whenCreated: new Date('2020-10-01T12:00:00+00:00').getTime(),
+      objectGUID: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd',
+      createdAt: new Date('2020-10-01T12:00:00+00:00').getTime(),
+      updatedAt: new Date('2020-11-01T12:00:00+00:00').getTime(),
       username: 'alice',
-      givenname: 'Alice',
-      sn: 'Adams',
-      userpassword: 'alice',
+      firstName: 'Alice',
+      name: 'Adams',
+      userPassword: 'alice',
       mail: 'alice.adams@my.local',
-      phone: '+1180180180',
+      mobile: '+1180180180',
       memberOf: ['test:read', 'test:write'],
       orgId: '8cbe965e-5481-470b-9388-8d8bf169efc5',
-      useraccountcontrol: ADS_UF_NORMAL_ACCOUNT,
+      userAccountControl: ADS_UF_NORMAL_ACCOUNT,
       pwdLastSet: PWD_OK,
       emailVerified: true,
-      accountExpiresAt: new Date('2020-11-01T12:00:00Z').getTime(),
-      lastPwdSetAt: new Date('2020-10-02T12:00:00Z').getTime()
+      accountExpiresAt: new Date('2020-12-01T12:00:00Z').getTime(),
     }
     const suffix = new Suffix({ cnUsers: 'Users', ouRoles: 'Roles', dc: 'example.local' })
 
     it('shall convert user object', function () {
       const ldapUserMap = createLdapUserMap({ suffix })
       const res = new LdapUserMapper(ldapUserMap, user).toLdap()
+      // console.log(res)
       assert.deepStrictEqual(res,
         {
+          dn: 'cn=alice,cn=Users,dc=example,dc=local',
           attributes: {
-            accountexpires: '20201101120000Z',
+            samaccountname: 'alice',
             cn: 'alice',
-            emailverified: true,
+            objectguid: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd',
+            whencreated: '20201001120000Z',
+            whenchanged: '20201101120000Z',
             givenname: 'Alice',
-            lastpwdset: '20201002120000Z',
+            sn: 'Adams',
             mail: 'alice.adams@my.local',
+            mobile: '+1180180180',
+            oid: '8cbe965e-5481-470b-9388-8d8bf169efc5',
+            useraccountcontrol: 512,
+            pwdlastset: -1,
+            emailverified: true,
+            accountexpires: 132512976000000,
             memberof: [
               'cn=test:read,ou=Roles,dc=example,dc=local',
               'cn=test:write,ou=Roles,dc=example,dc=local'
             ],
-            objectguid: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd',
-            orgid: '8cbe965e-5481-470b-9388-8d8bf169efc5',
-            phone: '+1180180180',
-            pwdlastset: -1,
-            samaccountname: 'alice',
-            sn: 'Adams',
-            useraccountcontrol: 512,
-            userid: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd',
-            username: 'alice',
-            whencreated: '20201001120000Z'
-          },
-          dn: 'cn=alice,cn=Users,dc=example,dc=local'
+            uid: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd'
+          }
         }
       )
+      cache.ldap = res
     })
 
-    it('shall update from ldap attributes', function () {
+    it('shall convert it back', function () {
+      const ldapUserMap = createLdapUserMap({ suffix })
+      const res = new LdapUserMapper(ldapUserMap).update(cache.ldap.attributes).get()
+
+      assert.deepStrictEqual(res, {
+        username: 'alice',
+        firstName: 'Alice',
+        name: 'Adams',
+        mail: 'alice.adams@my.local',
+        mobile: '+1180180180',
+        orgId: '8cbe965e-5481-470b-9388-8d8bf169efc5',
+        userAccountControl: 512,
+        pwdLastSet: -1,
+        emailVerified: true,
+        uid: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd'
+      })
+    })
+
+    it('shall update from ldap attributes with custom mappings', function () {
       const mapper = {
         givenname: 'name',
         sn: 'lastName'
@@ -104,7 +145,7 @@ describe('LdapUserMapper', function () {
         lastName: 'Anders',
         mail: 'alice.adams@my.local',
         emailVerified: true,
-        useraccountcontrol: 512,
+        userAccountControl: 512,
         pwdLastSet: 0
       })
     })

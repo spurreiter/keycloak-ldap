@@ -4,6 +4,7 @@ const { uuid4 } = require('../utils.js')
 const log = require('../log.js').log('MockAdapter')
 const { users, roles } = require('./mockUsers.js')
 const { PasswordPolicy } = require('../PasswordPolicy.js')
+const { Account } = require('../Account.js')
 const {
   ADS_UF_NORMAL_ACCOUNT,
   PWD_OK,
@@ -73,6 +74,7 @@ class MockDataStore {
 class MockAdapter extends IAdapter {
   constructor (opts) {
     super(opts)
+    this._account = new Account(opts)
     this._users = new MockDataStore()
     this._users.insert(users)
     this._roles = roles
@@ -87,8 +89,17 @@ class MockAdapter extends IAdapter {
     this._mfa = new MockDataStore()
   }
 
+  checkUser (user) {
+    if (user && !this._account.isExpired(user)) { 
+      this._account.passwordResetNeeded(user)
+      return user
+    }
+    return null
+  }
+
   searchUsername (username) {
     return this._users.findOne({ username })
+      .then(user => this.checkUser(user))
       .catch(err => {
         log.error(err)
         // return undefined here - not the error
@@ -97,6 +108,7 @@ class MockAdapter extends IAdapter {
 
   searchMail (mail) {
     return this._users.findOne({ mail })
+      .then(user => this.checkUser(user))
       .catch(err => {
         log.error(err)
         // return undefined here - not the error
@@ -120,23 +132,24 @@ class MockAdapter extends IAdapter {
 
   async verifyPassword (username, password) {
     log.debug({ username, password })
-    const user = await this.searchUsername(username)
-    const { userpassword } = user
+    let user = await this.searchUsername(username)
 
-    if (user.accountExpiresAt) {
-      const expiresAt = new Date(user.accountExpiresAt)
-      if (expiresAt > new Date()) {
-        return
-      }
+    if (!user) {
+      return Promise.reject(new Error('user not found'))
+    }
+    const { userPassword } = user
+
+    if (this._account.isExpired(user)) {
+      return false
     }
 
-    const isValid = await validatePassword(userpassword, password)
+    const isValid = await validatePassword(userPassword, password)
     log.debug({ username, isValid })
 
     if (isValid) {
-      user.lastLogonAt = new Date().getTime()
+      user = this._account.passwordValid(user)
     } else {
-      // TODO log failed login attempts
+      user = this._account.passwordInValid(user)
     }
     this._users.update({ username }, user)
 
@@ -145,7 +158,7 @@ class MockAdapter extends IAdapter {
 
   async updatePassword (username, newPassword) {
     log.debug('updatePassword %j', { username, newPassword })
-    const user = await this.searchUsername(username)
+    let user = await this.searchUsername(username)
 
     if (!user) {
       return Promise.reject(new Error('user not found'))
@@ -156,9 +169,7 @@ class MockAdapter extends IAdapter {
       return Promise.reject(violatesPwdPolicyErr)
     }
 
-    user.userpassword = newPassword
-    user.pwdLastSet = PWD_OK
-    user.lastPwdSetAt = new Date()
+    user = this._account.setPassword(user, newPassword)
 
     await this._users.update({ username }, user)
   }

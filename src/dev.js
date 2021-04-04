@@ -25,7 +25,8 @@ if (module === require.main) {
       host: '127.0.0.1',
       bindDN: suffix.suffixUsers('Administrator'),
       bindPassword: 'ldap-password',
-      suffix
+      suffix,
+      mapper: {} // uses attributeMapper from LdapUserMapper.js
     },
     http: {
       port: 1080,
