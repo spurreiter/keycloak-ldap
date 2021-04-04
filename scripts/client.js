@@ -15,13 +15,14 @@ function setup () {
 
   const memoryStore = new session.MemoryStore()
   const keycloak = new Keycloak({
-    store: memoryStore
+    store: memoryStore,
+    scope: 'openid profile email phone'
   }, {
     realm: 'my',
     clientId: 'my-server',
     secret: undefined,
     public: true,
-    authServerUrl: 'http://localhost:8080/auth'
+    authServerUrl: 'http://localhost:8080/auth',
   })
 
   app.use(logger)

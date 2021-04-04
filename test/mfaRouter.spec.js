@@ -27,7 +27,7 @@ describe('mfaRouter', function () {
     .type('json')
     .send(o)
   const verify = (o) => request(_app)
-    .put('/mfa/verify')
+    .put('/mfa')
     .set({ 'X-Request-Id': '1234567890' })
     .type('json')
     .send(o)

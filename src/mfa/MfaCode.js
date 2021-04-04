@@ -55,10 +55,13 @@ function createCode (length = LENGTH, type = TYPE.NUMERIC) {
 function verifyCode (code, value) {
   let isValid = false
 
-  if (typeof value === 'string' && code.length === value.length) {
-    const a = Buffer.from(code)
-    const b = Buffer.from(value)
-    isValid = crypto.timingSafeEqual(a, b)
+  if (typeof value === 'string') {
+    value = value.trim()
+    if (code.length === value.length) {
+      const a = Buffer.from(code)
+      const b = Buffer.from(value)
+      isValid = crypto.timingSafeEqual(a, b)
+    }
   }
 
   return isValid

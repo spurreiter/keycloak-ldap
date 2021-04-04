@@ -80,7 +80,7 @@ Server errors
 Requires a initial code requested via `POST / {}` within the allowed expiry.
 
 ```js
-PUT /verify
+PUT /
 Authentication: Basic <b64(user:pass)> // optional Basic Authentication
 {
   nonce: string, // a random string (shall prevent accidental misconfiguration)

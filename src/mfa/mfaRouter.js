@@ -24,8 +24,8 @@ const { MfaCode } = require('./MfaCode.js')
  * @param {object} param0
  * @param {IAdapter} param0.adapter - database adapter
  * @param {SendMfaFunction} param0.sendMfa - service to send Mfa
- * @param {String} [param0.idProp=phoneNumber] - req.body property which serves as id to store the mfa token
- * @param {String} [param0.idPropAlt=email] - req.body property which serves as alertnative id to store the mfa token
+ * @param {String} [param0.idProp=mobile] - req.body property which serves as id to store the mfa token
+ * @param {String} [param0.idPropAlt=email] - req.body property which serves as alternative id to store the mfa token
  * @returns
  */
 function mfaRouter ({ adapter, sendMfa, idProp = 'phoneNumber', idPropAlt = 'email' }) {
@@ -60,9 +60,9 @@ function mfaRouter ({ adapter, sendMfa, idProp = 'phoneNumber', idPropAlt = 'ema
     }
   })
 
-  router.put('/verify', async (req, res, next) => {
+  router.put('/', async (req, res, next) => {
     const destination = getDestination(req.body)
-    const { code, nonce } = req.body
+    let { code, nonce } = req.body
 
     // the nonce shall prevent accidental misconfiguration
     // it needs to be checked at the client as well.
@@ -83,6 +83,32 @@ function mfaRouter ({ adapter, sendMfa, idProp = 'phoneNumber', idPropAlt = 'ema
         next(err)
         return
       }
+      res.status(200).json({ nonce })
+    } catch (err) {
+      next(err)
+    }
+  })
+
+  // FIXME: move to different router
+  router.post('/send-email', async (req, res, next) => {
+    const { email, link, nonce } = req.body
+
+    // the nonce shall prevent accidental misconfiguration
+    // it needs to be checked at the client as well.
+    if (!nonce || !nonce.length) {
+      next(new Error('Nonce missing'))
+      return
+    }
+    if (!link) {
+      next(new Error('Link missing'))
+      return
+    }
+    if (!email) {
+      next(new Error('Email missing'))
+      return
+    }
+    try {
+      await sendMfa({ ...req.body, destination: email, link })
       res.status(200).json({ nonce })
     } catch (err) {
       next(err)
