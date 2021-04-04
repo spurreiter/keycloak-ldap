@@ -65,9 +65,25 @@ describe('LdapUserMapper', function () {
       userAccountControl: ADS_UF_NORMAL_ACCOUNT,
       pwdLastSet: PWD_OK,
       emailVerified: true,
-      accountExpiresAt: new Date('2020-12-01T12:00:00Z').getTime(),
+      accountExpiresAt: new Date('2020-12-01T12:00:00Z').getTime()
     }
     const suffix = new Suffix({ cnUsers: 'Users', ouRoles: 'Roles', dc: 'example.local' })
+
+    it('throws if user is not an object', function () {
+      const ldapUserMap = createLdapUserMap({ suffix })
+      assert.throws(() => {
+        // eslint-disable-next-line no-new
+        new LdapUserMapper(ldapUserMap, '##')
+      }, new TypeError('user must be an object'))
+    })
+
+    it('throws on set if user is not an object', function () {
+      const ldapUserMap = createLdapUserMap({ suffix })
+      assert.throws(() => {
+        // eslint-disable-next-line no-new
+        new LdapUserMapper(ldapUserMap).set('##')
+      }, new TypeError('user must be an object'))
+    })
 
     it('shall convert user object', function () {
       const ldapUserMap = createLdapUserMap({ suffix })

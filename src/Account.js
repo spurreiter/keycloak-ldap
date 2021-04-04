@@ -14,9 +14,10 @@ class Account {
    * @param {number} [opts.maxPwdAge] - max password age in milliSecs. Default is 90 days. 
    */
   constructor (opts) {
-    Object.assign({
+    Object.assign(this, {
       maxPwdAge: 90 * 24 * 60 * 60 * 1000
     }, opts)
+    if (isNaN(this.maxPwdAge)) throw new TypeError('maxPwdAge is not a number')
   }
 
   /**
@@ -28,6 +29,7 @@ class Account {
       const expiresAt = new Date(user.accountExpiresAt)
       return expiresAt < new Date()
     }
+    return false
   }
 
   /**
@@ -38,7 +40,7 @@ class Account {
   passwordResetNeeded (user) {
     const {
       pwdLastSetAt = 0,
-      pwdLastSet,
+      pwdLastSet = PWD_UPDATE_ON_NEXT_LOGIN,
       userAccountControl = ADS_UF_NORMAL_ACCOUNT
     } = user
 

@@ -142,12 +142,23 @@ function createLdapUserMap ({ suffix, mapper = {} }) {
  */
 class LdapUserMapper {
   /**
-   * [constructor description]
+   * @constructor
+   * @throws {TypeError} if user is not an object
    * @param {LdapUserMap} ldapUserMap - result from createLdapUserMap()
    * @param {object} [user] - user object
    */
   constructor (ldapUserMap, user = {}) {
     Object.assign(this, ldapUserMap, { user })
+    this._checkType()
+  }
+
+  /**
+   * @private
+   */
+  _checkType() {
+    if (typeof this.user !== 'object' || this.user === null) {
+      throw new TypeError('user must be an object')
+    }
   }
 
   /**
@@ -161,25 +172,25 @@ class LdapUserMapper {
 
   /**
    * set user from database
+   * @throws {TypeError}
+   * @param {object} user
    * @param {this}
    */
   set (user) {
     this.user = user
+    this._checkType()
     return this
   }
 
   /**
    * update ldap attributes
    * @param {object} ldapAttributes
-   * @param {boolean} [doPassReadonly] - do not filter readonly values
+   * @param {boolean} [ignoreReadonly] - do not filter readonly values
    * @return {this}
    */
-  update (ldapAttributes, doPassReadonly) {
-    if (!this.user) {
-      throw new Error('no user')
-    }
+  update (ldapAttributes, ignoreReadonly) {
     Object.entries(ldapAttributes).forEach(([attr, val]) => {
-      if (!doPassReadonly && READONLY_ATTRS.includes(attr)) return
+      if (!ignoreReadonly && READONLY_ATTRS.includes(attr)) return
       const key = this.mapper[attr] || attr
       this.user[key] = normalizeAttribute(attr, val)
     })
@@ -191,8 +202,6 @@ class LdapUserMapper {
    * @return {[type]}
    */
   toLdap () {
-    if (!this.user) return null
-
     const user = Object.entries(this.user).reduce((o, [key, val]) => {
       const attr = this.mapperToLdap[key] || key
       if (GENERALIZED_TIME.includes(attr)) {
