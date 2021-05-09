@@ -1,9 +1,8 @@
-const { 
+const {
   ADS_UF_NORMAL_ACCOUNT,
   PWD_UPDATE_ON_NEXT_LOGIN
 } = require('./constants.js')
 const { toNumber } = require('./utils.js')
-
 
 /**
  * attribute mapper
@@ -84,6 +83,22 @@ function toLdapInterval (date) {
   return ts
 }
 
+function toLdapBinaryUuid (uuid) {
+  const hex = String(uuid).replace(/-/g, '')
+  if (hex.length !== 32) {
+    throw new Error('not a uuid')
+  }
+  const m = [3, 2, 1, 0, 5, 4, 7, 6]
+  const a = new Array(16)
+  for (let i = 0; i < 16; i++) {
+    const n = parseInt(hex.substr(i * 2, 2), 16)
+    const p = m[i] ?? i
+    a[p] = n
+  }
+  const buf = Buffer.from(a)
+  return buf
+}
+
 /**
  * normalize attribute before update
  * @param  {string} attr - attribute
@@ -155,7 +170,7 @@ class LdapUserMapper {
   /**
    * @private
    */
-  _checkType() {
+  _checkType () {
     if (typeof this.user !== 'object' || this.user === null) {
       throw new TypeError('user must be an object')
     }
@@ -209,10 +224,11 @@ class LdapUserMapper {
       if (hasAttributes && attr !== 'cn' && !attributes.includes(attr)) {
         return o
       }
-      if (GENERALIZED_TIME.includes(attr)) {
+      if (attr === 'objectguid') {
+        val = toLdapBinaryUuid(val)
+      } else if (GENERALIZED_TIME.includes(attr)) {
         val = toLdapTimestamp(val)
-      }
-      if (INTERVAL_TIME.includes(attr)) {
+      } else if (INTERVAL_TIME.includes(attr)) {
         val = toLdapInterval(val)
       }
       o[attr] = val
@@ -242,5 +258,6 @@ module.exports = {
   createLdapUserMap,
   LdapUserMapper,
   toLdapTimestamp,
-  toLdapInterval
+  toLdapInterval,
+  toLdapBinaryUuid
 }

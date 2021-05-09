@@ -1,6 +1,11 @@
 const assert = require('assert')
 const { Suffix } = require('../src/Suffix.js')
-const { toLdapTimestamp, toLdapInterval, LdapUserMapper, createLdapUserMap } = require('../src/LdapUserMapper.js')
+const {
+  toLdapTimestamp,
+  toLdapInterval,
+  toLdapBinaryUuid, LdapUserMapper,
+  createLdapUserMap
+} = require('../src/LdapUserMapper.js')
 const {
   ADS_UF_NORMAL_ACCOUNT,
   PWD_OK
@@ -95,7 +100,7 @@ describe('LdapUserMapper', function () {
           attributes: {
             samaccountname: 'alice',
             cn: 'alice',
-            objectguid: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd',
+            objectguid: toLdapBinaryUuid('bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd'),
             whencreated: '20201001120000Z',
             whenchanged: '20201101120000Z',
             givenname: 'Alice',
@@ -137,7 +142,7 @@ describe('LdapUserMapper', function () {
           attributes: {
             samaccountname: 'alice',
             cn: 'alice',
-            objectguid: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd',
+            objectguid: toLdapBinaryUuid('bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd'),
             whencreated: '20201001120000Z',
             givenname: 'Alice',
             sn: 'Adams',
@@ -198,6 +203,32 @@ describe('LdapUserMapper', function () {
         userAccountControl: 512,
         pwdLastSet: 0
       })
+    })
+  })
+
+  describe('toLdapBinaryUuid', function () {
+    it('can convert a uuid to ldap binary buffer', function () {
+      const uuid = 'f17beb47-7ab2-445b-97df-864e118d9d34'
+      const buf = toLdapBinaryUuid(uuid)
+      const exp = Buffer.from([
+        0x47,
+        0xeb,
+        0x7b,
+        0xf1,
+        0xb2,
+        0x7a,
+        0x5b,
+        0x44,
+        0x97,
+        0xdf,
+        0x86,
+        0x4e,
+        0x11,
+        0x8d,
+        0x9d,
+        0x34
+      ])
+      assert.deepStrictEqual(buf, exp)
     })
   })
 })

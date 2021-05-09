@@ -98,19 +98,38 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
         } else {
           log.warn('searchMw email %s not found', filtered.mail)
         }
+      } else if (filtered.objectguid) {
+        // search by objectguid
+        const user = await adapter.searchGuid(filtered.objectguid)
+        if (user && user[attrUsername]) {
+          log.info(
+            'searchMw user %s found by objectguid %s',
+            user[attrUsername],
+            filtered.mail
+          )
+          const ldap = new LdapUserMapper(ldapUserMap, user).toLdap(
+            req.attributes
+          )
+          log.debug(ldap)
+          res.send(ldap)
+        } else {
+          log.warn('searchMw objectguid %s not found', filtered.mail)
+        }
       } else if (filtered.objectclass === 'group') {
         // search by group
         log.debug('%j', req)
         const roles = await adapter.syncAllRoles()
-        roles.forEach(role => {
+        roles.forEach((role) => {
           const ldap = roleToLdap(role)
           log.debug(ldap)
           res.send(ldap)
         })
+      } else if (username === '') {
+        // NOOP
       } else {
         // synchronize all users
         const users = await adapter.syncAllUsers()
-        users.forEach(user => {
+        users.forEach((user) => {
           res.send(user)
         })
       }

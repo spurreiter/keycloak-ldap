@@ -21,6 +21,15 @@ class IAdapter {
   }
 
   /**
+   * search user by guid
+   * @param  {String}  guid
+   * @return {Promise<object|undefined>} return found user object (undefined if nothing was found)
+   */
+  async searchGuid (guid) {
+    throw new Error()
+  }
+
+  /**
    * search for role
    * @param  {String}  role
    * @return {Promise<object|undefined>} return found roles object (undefined if nothing was found)

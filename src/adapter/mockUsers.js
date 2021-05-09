@@ -79,7 +79,10 @@ const roles = [
   'uma_authorization'
 ]
 
+const defaultRoles = ['offline_access', 'uma_authorization']
+
 module.exports = {
   users,
-  roles
+  roles,
+  defaultRoles
 }

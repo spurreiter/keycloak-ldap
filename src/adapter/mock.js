@@ -1,7 +1,7 @@
 const Datastore = require('nedb')
 const { IAdapter } = require('./interface.js')
 const log = require('../log.js').log('MockAdapter')
-const { users, roles } = require('./mockUsers.js')
+const { users, roles, defaultRoles } = require('./mockUsers.js')
 const { PasswordPolicy } = require('../PasswordPolicy.js')
 const { Account } = require('../Account.js')
 
@@ -94,24 +94,39 @@ class MockAdapter extends IAdapter {
   }
 
   searchUsername (username) {
-    return this._users.findOne({ username })
-      .then(user => this.checkUser(user))
-      .catch(err => {
+    return this._users
+      .findOne({ username })
+      .then((user) => this.checkUser(user))
+      .catch((err) => {
         log.error(err)
         // return undefined here - not the error
       })
   }
 
   searchMail (mail) {
-    return this._users.findOne({ mail })
-      .then(user => this.checkUser(user))
-      .catch(err => {
+    return this._users
+      .findOne({ mail })
+      .then((user) => this.checkUser(user))
+      .catch((err) => {
+        log.error(err)
+        // return undefined here - not the error
+      })
+  }
+
+  searchGuid (objectGUID) {
+    return this._users
+      .findOne({ objectGUID })
+      .then((user) => this.checkUser(user))
+      .catch((err) => {
         log.error(err)
         // return undefined here - not the error
       })
   }
 
   async searchRole (role) {
+    if (/^default-roles-[a-z]+$/.test(role)) {
+      return defaultRoles
+    }
     const hasRole = this._roles.includes(role)
     if (hasRole) {
       return role
@@ -160,7 +175,9 @@ class MockAdapter extends IAdapter {
       return Promise.reject(new Error('user not found'))
     }
 
-    const violatesPwdPolicyErr = this._policy.validate(newPassword, { username })
+    const violatesPwdPolicyErr = this._policy.validate(newPassword, {
+      username
+    })
     if (violatesPwdPolicyErr) {
       return Promise.reject(violatesPwdPolicyErr)
     }
