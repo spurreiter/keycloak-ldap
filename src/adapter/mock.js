@@ -123,6 +123,15 @@ class MockAdapter extends IAdapter {
       })
   }
 
+  searchSn (sn) {
+    return this._users
+      .find({ sn })
+      .catch((err) => {
+        log.error(err)
+        // return undefined here - not the error
+      })
+  }
+
   async searchRole (role) {
     if (/^default-roles-[a-z]+$/.test(role)) {
       return defaultRoles

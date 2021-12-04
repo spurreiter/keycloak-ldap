@@ -60,10 +60,9 @@ if (module === require.main) {
 
   const server = ldapServer(ldapConfig, adapter)
 
-  server.listen(ldapConfig.port, ldapConfig.host, () => {
-    const host = server.address().address
-    const port = server.address().port
-    log.info('LDAP on ldap://%s:%s', host, port)
+  server.listen(config.port, config.host, () => {
+    const { address, port } = server.address()
+    log.info('LDAP on ldap://%s:%s', address, port)
   })
 
   // ---- mfa ----

@@ -15,16 +15,22 @@ const log = console.log
 function setup () {
   const app = express()
 
+  const realm = 'my'
+  const clientId = 'my-server'
+  const clientSecret = undefined
+  const authServerUrl = 'http://localhost:8080/auth'
+  const scope = 'openid profile email phone'
+
   const memoryStore = new session.MemoryStore()
   const keycloak = new Keycloak({
     store: memoryStore,
-    scope: 'openid profile email phone'
+    scope
   }, {
-    realm: 'my',
-    clientId: 'my-server',
-    secret: undefined,
-    public: true,
-    authServerUrl: 'http://localhost:8080/auth'
+    realm,
+    clientId,
+    secret: clientSecret,
+    public: !clientSecret,
+    authServerUrl
   })
 
   app.use(logger)
