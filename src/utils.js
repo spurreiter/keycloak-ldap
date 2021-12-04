@@ -1,18 +1,31 @@
-
 const crypto = require('crypto')
 
+/** @typedef {import('./Suffix').Suffix} Suffix */
+/** @typedef {import('./types').LDAPRequest} LDAPRequest */
+/** @typedef {import('./types').LDAPResult} LDAPResult */
+
+/**
+ * @returns {string}
+ */
 const uuid4 = () =>
+  // @ts-ignore
   ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c =>
     (c ^ (crypto.randomBytes(1)[0] & (15 >> (c / 4)))).toString(16)
   )
 
 /**
  * like lodash.get but simpler
+ * @param {object} obj
+ * @param {string|(string|number)[]} keys
+ * @param {any} [def]
+ * @returns {any}
  */
 const get = (obj, keys = [], def) => {
   let o = obj
-  if (typeof keys === 'string') keys = keys.split('.')
-  for (const key of keys) {
+  const _keys = typeof keys === 'string'
+    ? keys.split('.')
+    : keys
+  for (const key of _keys) {
     if (o && o[key]) { o = o[key] } else { return def }
   }
   return o
@@ -45,7 +58,7 @@ function splitFilter (dn = '') {
  * get username from common name
  * 'cn=jack,cn=Users,dc=example,dc=local' => jack
  * @param  {string} dn
- * @return {[type]}    [description]
+ * @return {string} username
  */
 function getUsernameFromCn (dn) {
   const cn = dn.split(/\s*,\s*/)[0]
@@ -59,6 +72,7 @@ function getUsernameFromCn (dn) {
  * @param  {String} [cn='cn']
  * @return {string}
  */
+// @ts-ignore
 const getUsernameFromReq = (req, cn = 'cn') => get(req, ['dn', 'rdns', 0, 'attrs', cn, 'value'])
 
 const toArray = str => Array.isArray(str) ? str : [str]
@@ -69,15 +83,17 @@ const toNumber = (num, def) => isNaN(num) ? def : Number(num)
  * build distinguished name from dc, ou, and cn
  * commonName{ cn: ['Administrator', 'Users'], ou: 'Roles', dc: 'example.local' } =>
  * 'cn=Administrator,cn=Users,ou=Roles,dc=example,dc=local'
- * @param  {string[]|string} cn
- * @param  {string[]|string} ou
- * @param  {string} dc
+ * @param  {object} param0
+ * @param  {string[]|string} [param0.cn]
+ * @param  {string[]|string} [param0.ou]
+ * @param  {string} param0.dc
  * @return {string}
  */
 const distName = ({ cn, ou, dc }) => {
   const cns = cn && toArray(cn).map(part => `cn=${part}`)
   const ous = ou && toArray(ou).map(part => `ou=${part}`)
   const dcs = dc.split(/\./).map(part => `dc=${part}`)
+  // @ts-ignore
   const name = [].concat(cns, ous, dcs).filter(Boolean).join(',')
   return name
 }
@@ -85,7 +101,8 @@ const distName = ({ cn, ou, dc }) => {
 /**
  * convert user to ldap object
  * @param  {object} user
- * @param  {Suffix} suffix
+ * @param  {object} param1
+ * @param  {Suffix} param1.suffix
  * @return {object} ldap object
  */
 function userToLdap (user, { suffix }) {
@@ -107,6 +124,13 @@ function userToLdap (user, { suffix }) {
   return ldap
 }
 
+/**
+ * convert role to ldap object
+ * @param  {string} role
+ * @param  {object} param1
+ * @param  {Suffix} param1.suffix
+ * @return {object} ldap object
+ */
 function roleToLdap (role, { suffix }) {
   const ldap = {
     dn: suffix.suffixRoles(role),
@@ -119,12 +143,12 @@ function roleToLdap (role, { suffix }) {
 
 /**
  * converts a uint16 low endian byte array to a string
- * @param  {[type]} arrUint8
- * @return {[type]}          [description]
+ * @param  {Buffer|Uint8Array} arrUint8
+ * @return {string}
  */
 function decodeUTF16LE (arrUint8) {
-  var cp = []
-  for (var i = 0; i < arrUint8.length; i += 2) {
+  const cp = []
+  for (let i = 0; i < arrUint8.length; i += 2) {
     cp.push(arrUint8[i] | (arrUint8[i + 1] << 8))
   }
   return String.fromCharCode.apply(String, cp)

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+/* eslint node/no-path-concat:off */
+
 const os = require('os')
 const fs = require('fs')
 const { execSync } = require('child_process')

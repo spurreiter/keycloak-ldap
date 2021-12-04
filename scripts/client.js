@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+// @ts-nocheck
+
 /**
  * express application with keycloak authentication
  */
@@ -22,7 +24,7 @@ function setup () {
     clientId: 'my-server',
     secret: undefined,
     public: true,
-    authServerUrl: 'http://localhost:8080/auth',
+    authServerUrl: 'http://localhost:8080/auth'
   })
 
   app.use(logger)
@@ -136,7 +138,7 @@ const config = {
 }
 const app = setup()
 const server = app.listen(config.port, config.host, () => {
-  var host = server.address().address
-  var port = server.address().port
+  const host = server.address().address
+  const port = server.address().port
   console.log('Client on http://%s:%s', host, port)
 })

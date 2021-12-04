@@ -5,6 +5,20 @@ const log = require('../log.js').log('mfaRouter')
 const { IAdapter } = require('../adapter/index.js') // eslint-disable-line no-unused-vars
 const { MfaCode } = require('./MfaCode.js')
 
+class HttpError extends Error {
+  constructor (message, status) {
+    super(message)
+    this.status = status
+  }
+}
+
+function wrapErrorStatus (err, status = 400) {
+  if (!err.status) {
+    err.status = status
+  }
+  return err
+}
+
 /**
  * send a mfa code
  * shall throw an error of type {@link MfaCodeError}
@@ -29,7 +43,7 @@ const { MfaCode } = require('./MfaCode.js')
  * @returns
  */
 function mfaRouter ({ adapter, sendMfa, idProp = 'phoneNumber', idPropAlt = 'email' }) {
-  const router = new Router()
+  const router = Router()
 
   const mfaCode = new MfaCode()
 
@@ -52,8 +66,8 @@ function mfaRouter ({ adapter, sendMfa, idProp = 'phoneNumber', idPropAlt = 'ema
         next(err)
         return
       }
-      await sendMfa({ ...req.body, destination, code: mfa.code })
-      const status = mfa.retryCount ? 200 : 201
+      await sendMfa({ ...req.body, destination, code: mfa?.code })
+      const status = mfa?.retryCount ? 200 : 201
       res.status(status).json({ nonce, destination })
     } catch (err) {
       next(wrapErrorStatus(err, 400))
@@ -62,12 +76,12 @@ function mfaRouter ({ adapter, sendMfa, idProp = 'phoneNumber', idPropAlt = 'ema
 
   router.put('/', async (req, res, next) => {
     const destination = getDestination(req.body)
-    let { code, nonce } = req.body
+    const { code, nonce } = req.body
 
     // the nonce shall prevent accidental misconfiguration
     // it needs to be checked at the client as well.
     if (!nonce || !nonce.length) {
-      next(new Error('Nonce missing'))
+      next(new HttpError('Nonce missing', 400))
       return
     }
 
@@ -91,23 +105,20 @@ function mfaRouter ({ adapter, sendMfa, idProp = 'phoneNumber', idPropAlt = 'ema
 
   // FIXME: move to different router
   router.post('/send-email', async (req, res, next) => {
-    const { email, link, nonce } = req.body
-
-    // the nonce shall prevent accidental misconfiguration
-    // it needs to be checked at the client as well.
-    if (!nonce || !nonce.length) {
-      next(new Error('Nonce missing'))
-      return
-    }
-    if (!link) {
-      next(new Error('Link missing'))
-      return
-    }
-    if (!email) {
-      next(new Error('Email missing'))
-      return
-    }
     try {
+      const { email, link, nonce } = req.body
+
+      // the nonce shall prevent accidental misconfiguration
+      // it needs to be checked at the client as well.
+      if (!nonce || !nonce.length) {
+        throw new HttpError('Nonce missing', 400)
+      }
+      if (!link) {
+        throw new HttpError('Link missing', 400)
+      }
+      if (!email) {
+        throw new HttpError('Email missing', 400)
+      }
       await sendMfa({ ...req.body, destination: email, link })
       res.status(200).json({ nonce })
     } catch (err) {
@@ -134,11 +145,4 @@ function mfaRouter ({ adapter, sendMfa, idProp = 'phoneNumber', idPropAlt = 'ema
 
 module.exports = {
   mfaRouter
-}
-
-function wrapErrorStatus (err, status = 400) {
-  if (!err.status) {
-    err.status = status
-  }
-  return err
 }

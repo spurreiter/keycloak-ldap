@@ -14,7 +14,7 @@ class MockDataStore {
     return new Promise((resolve, reject) => {
       this.data.insert(items, (err) => {
         if (err) reject(err)
-        else resolve()
+        else resolve(undefined)
       })
     })
   }
@@ -67,7 +67,7 @@ class MockDataStore {
 
 class MockAdapter extends IAdapter {
   constructor (opts) {
-    super(opts)
+    super()
     this._account = new Account(opts)
     this._users = new MockDataStore()
     this._users.insert(users)
@@ -218,10 +218,18 @@ class MockAdapter extends IAdapter {
     return this._mfa.upsert({ id: mfa.id }, mfa)
   }
 
+  /**
+   * @param {string} id
+   * @returns {Promise<import('../mfa/MfaCode.js').MfaCodeEntity>}
+   */
   searchMfa (id) {
     return this._mfa.findOne({ id })
   }
 
+  /**
+   * @param {string} id
+   * @returns {Promise}
+   */
   removeMfa (id) {
     return this._mfa.remove({ id })
   }
@@ -240,9 +248,9 @@ function timingSafeEqual (_a, _b) {
   const b = toArray(_b)
   let diff = (a.length !== b.length)
   for (let i = 0; i < b.length; i++) {
-    diff |= (a[i] !== b[i])
+    diff ||= (a[i] !== b[i])
   }
-  return (diff === 0)
+  return !diff
 }
 
 // simulate password comparison

@@ -3,7 +3,7 @@
 /coverage
 *.tgz
 *.log
-
+.env*
 todo.md 
 extensions-java 
 extensions-js

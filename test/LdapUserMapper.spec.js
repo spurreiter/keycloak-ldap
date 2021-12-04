@@ -3,7 +3,8 @@ const { Suffix } = require('../src/Suffix.js')
 const {
   toLdapTimestamp,
   toLdapInterval,
-  toLdapBinaryUuid, LdapUserMapper,
+  toLdapBinaryUuid,
+  LdapUserMapper,
   createLdapUserMap
 } = require('../src/LdapUserMapper.js')
 const {
@@ -88,6 +89,12 @@ describe('LdapUserMapper', function () {
         // eslint-disable-next-line no-new
         new LdapUserMapper(ldapUserMap).set('##')
       }, new TypeError('user must be an object'))
+    })
+
+    it('throws if objectguid is not a UUID', function () {
+      assert.throws(() => {
+        toLdapBinaryUuid('this is not a uuid')
+      }, new Error('not a uuid'))
     })
 
     it('shall convert user object', function () {

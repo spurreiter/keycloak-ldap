@@ -1,4 +1,7 @@
 
+/** @typedef {import('./types').Policy} Policy */
+
+/** @type {Policy} */
 const DEFAULT_POLICY = {
   minLength: 8,
   maxLength: 40,
@@ -10,19 +13,6 @@ const DEFAULT_POLICY = {
   notEmail: true,
   notPhone: true
 }
-
-/**
- * @typedef {object} Policy
- * @property {number} minLength=8 - min password length
- * @property {number} maxLength=40 - max password length
- * @property {number} minDigits=1 - min digits
- * @property {number} minLowerChars=1 - min lower case chars
- * @property {number} minUpperChars=1 - min lower case chars
- * @property {number} minSpecialChars=1 - min special chars
- * @property {boolean} notUsername=true - does not contain username
- * @property {boolean} notEmail=true - does not contain email
- * @property {boolean} notPhone=true - does not contain phone
- */
 
 class PasswordPolicy {
   /**
@@ -64,16 +54,22 @@ class PasswordPolicy {
 
     let msg
 
+    // @ts-ignore
     if (password.length < minLength) {
       msg = 'invalidPasswordMinLength'
+    // @ts-ignore
     } else if (password.length > maxLength) {
       msg = 'invalidPasswordMaxLength'
+    // @ts-ignore
     } else if (digits < minDigits) {
       msg = 'invalidPasswordMinDigits'
+    // @ts-ignore
     } else if (lower < minLowerChars) {
       msg = 'invalidPasswordMinLowerChars'
+    // @ts-ignore
     } else if (upper < minUpperChars) {
       msg = 'invalidPasswordMinUpperChars'
+    // @ts-ignore
     } else if (special < minSpecialChars) {
       msg = 'invalidPasswordMinSpecialChars'
     } else if (notUsername && username && password.indexOf(username) !== -1) {

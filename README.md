@@ -29,6 +29,9 @@ node scripts/import-realm.js
 npm run dev
 ```
 
+In `src/adapter/mockUsers.js` the default users "alice", "bob" and "charly" are available. 
+New users can be registered.
+
 ## multi-factor-authentication 
 
 `src/mfa` contains a express router to handle generation and sending of OTP codes. 

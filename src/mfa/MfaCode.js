@@ -1,7 +1,10 @@
 const crypto = require('crypto')
 
+/** @typedef {import('../types').MfaCodeEntity} MfaCodeEntity */
+
 /**
  * Type of mfa code
+ * @typedef {number} TypeEnum
  * @enum {number} TypeEnum
  */
 const TYPE = {
@@ -29,8 +32,8 @@ const SYMBOLS = [
 
 /**
  * create a mfa code
- * @param {Number} [length=6] - (int) length of code
- * @param {TypeEnum} [type=NUMERIC] - type of code
+ * @param {Number} [length=6] (int) length of code
+ * @param {TypeEnum} [type=NUMERIC] type of code
  * @returns {String}
  */
 function createCode (length = LENGTH, type = TYPE.NUMERIC) {
@@ -48,9 +51,9 @@ function createCode (length = LENGTH, type = TYPE.NUMERIC) {
 
 /**
  * verify mfa code
- * @param {String} code - original (persisted) code
- * @param {String} value - value (from user input)
- * @returns {Boolean} true if valid
+ * @param {string} code - original (persisted) code
+ * @param {string} value - value (from user input)
+ * @returns {boolean} true if valid
  */
 function verifyCode (code, value) {
   let isValid = false
@@ -67,34 +70,16 @@ function verifyCode (code, value) {
   return isValid
 }
 
-/**
- * @typedef {Error} MfaCodeError
- * @property {String} msg - error message code
- * @property {Number} status - http status code
- */
-
-/**
- * Set error
- * @param {String} msg
- * @param {Number} [status=400]
- * @returns {MfaCodeError}
- */
-function MfaCodeError (msg, status = 400) {
-  const err = new Error(msg)
-  err.name = 'MfaCodeError'
-  err.status = status
-  return err
-}
-
-/**
- * @property {String} param0.id - use email or phoneNumber as unique-id
- * @property {String} param0.code
- * @property {Number} param0.expiresAt - timestamp in milliseconds
- * @property {Number} param0.retryCount
- * @property {Number} param0.verifyCount
- */
-function MfaCodeEntity ({ id, code, expiresAt, retryCount, verifyCount }) {
-  Object.assign(this, { id, code, expiresAt, retryCount, verifyCount })
+class MfaCodeError extends Error {
+  /**
+   * Set error
+   * @param {String} message
+   * @param {Number} [status=400]
+   */
+  constructor (message, status = 400) {
+    super(message)
+    this.status = status
+  }
 }
 
 class MfaCode {
@@ -103,7 +88,7 @@ class MfaCode {
    * @param {object} [param0]
    * @param {number} [param0.validMins=5]
    * @param {number} [param0.length=6]
-   * @param {TypeCheck} [param0.type=NUMERIC]
+   * @param {TypeEnum} [param0.type=NUMERIC]
    * @param {number} [param0.maxRetryCount=2]
    * @param {number} [param0.maxVerifyCount=2]
    */
@@ -118,26 +103,29 @@ class MfaCode {
   /**
    * create a token
    * @throws {MfaCodeError}
-   * @param {String} id - use email or phoneNumber
-   * @param {Number} [retryCount=0]
-   * @return {Array} [MfaCodeError, MfaCodeEntity]
+   * @param {string} id - use email or phoneNumber
+   * @param {object} [mfa]
+   * @param {number} [mfa.retryCount=0]
+   * @return {[err: MfaCodeError|null, entity: MfaCodeEntity|null]}
    */
   create (id, mfa) {
     let err = null
     const { length, type, validMsecs, maxRetryCount } = this
-    const changedMfa = mfa || {
+    /** @type {MfaCodeEntity} */
+    const changedMfa = {
       id,
       expiresAt: Date.now() + validMsecs,
       retryCount: -1,
-      verifyCount: 0
+      verifyCount: 0,
+      ...mfa
     }
 
     changedMfa.retryCount++
 
     if (!id) {
-      throw MfaCodeError('missing_id', 400)
+      throw new MfaCodeError('missing_id', 400)
     } else if (changedMfa.retryCount > maxRetryCount) {
-      err = MfaCodeError('max_retries', 400)
+      err = new MfaCodeError('max_retries', 400)
       changedMfa.retryCount = 0
     } else {
       changedMfa.code = createCode(length, type)
@@ -152,19 +140,20 @@ class MfaCode {
    * @param {String} id
    * @param {MfaCodeEntity} mfa - persisted mfaCode (from db)
    * @param {String} value - value (from user input)
-   * @return {Array} [MfaCodeError, MfaCodeEntity]
+   * @return {[err: MfaCodeError|null, entity: MfaCodeEntity|null]}
    */
   verify (id, mfa, value) {
     let err = null
-    let changedMfa = Object.assign({}, mfa)
+    /** @type {MfaCodeEntity|null} */
+    let changedMfa = Object.assign({ verifyCount: this.maxVerifyCount }, mfa)
     const { id: _id, code, expiresAt } = mfa || {}
 
     if (!id || _id !== id) {
-      throw MfaCodeError('invalid_id', 404)
+      throw new MfaCodeError('invalid_id', 404)
     } else if (expiresAt < Date.now()) {
-      err = MfaCodeError('mfa_expired', 403)
+      err = new MfaCodeError('mfa_expired', 403)
       changedMfa = null // delete persisted value
-    } else if (!verifyCode(code, value)) {
+    } else if (!code || !value || !verifyCode(code, value)) {
       err = new MfaCodeError('mfa_invalid', 403)
       changedMfa.verifyCount += 1
     }
@@ -184,6 +173,5 @@ module.exports = {
   MfaCode,
   MfaCodeError,
   createCode,
-  verifyCode,
-  MfaCodeEntity
+  verifyCode
 }

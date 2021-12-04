@@ -7,7 +7,8 @@ const {
   ADS_UF_DONT_EXPIRE_PASSWD,
   ADS_UF_PASSWORD_EXPIRED,
   PWD_OK,
-  PWD_UPDATE_ON_NEXT_LOGIN
+  PWD_UPDATE_ON_NEXT_LOGIN,
+  DAY_IN_MS
 } = require('./constants.js')
 
 /**
@@ -15,19 +16,17 @@ const {
  */
 class Account {
   /**
-   * @param {object} opts 
-   * @param {number} [opts.maxPwdAge] - max password age in milliSecs. Default is 90 days. 
+   * @param {object} opts
+   * @param {number} [opts.maxPwdAge] max password age in milliSecs. Default is 90 days.
    */
-  constructor (opts) {
-    Object.assign(this, {
-      maxPwdAge: 90 * 24 * 60 * 60 * 1000
-    }, opts)
+  constructor (opts = {}) {
+    this.maxPwdAge = opts.maxPwdAge || 90 * DAY_IN_MS
     if (isNaN(this.maxPwdAge)) throw new TypeError('maxPwdAge is not a number')
   }
 
   /**
    * @param {object} user
-   * @returns {boolean} - true if expired
+   * @returns {boolean} true if expired
    */
   isExpired (user) {
     if (user.accountExpiresAt) {
@@ -84,7 +83,7 @@ class Account {
     return user
   }
 
-  /** 
+  /**
    * password is valid, resets badPwdCount and sets lastLoginAt
    * @param {object} user
    * @returns {object} user

@@ -15,6 +15,9 @@ class Suffix {
    * new Suffix({ cnUsers: 'Users', ouRoles: 'Roles', dc: 'example.local' })
    */
   constructor ({ cnUsers, ouRoles, dc }) {
+    this.cnUsers = undefined
+    this.ouRoles = undefined
+    this.dc = undefined
     Object.assign(this, { cnUsers, ouRoles, dc })
   }
 

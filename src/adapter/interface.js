@@ -4,7 +4,7 @@
 class IAdapter {
   /**
    * search user by username
-   * @param  {String}  username
+   * @param  {string|undefined} username
    * @return {Promise<object|undefined>} return found user object (undefined if nothing was found)
    */
   async searchUsername (username) {
@@ -13,7 +13,7 @@ class IAdapter {
 
   /**
    * search user by mail address
-   * @param  {String}  mail
+   * @param  {string|undefined}  mail
    * @return {Promise<object|undefined>} return found user object (undefined if nothing was found)
    */
   async searchMail (mail) {
@@ -22,7 +22,7 @@ class IAdapter {
 
   /**
    * search user by guid
-   * @param  {String}  guid
+   * @param  {string|undefined}  guid
    * @return {Promise<object|undefined>} return found user object (undefined if nothing was found)
    */
   async searchGuid (guid) {
@@ -31,10 +31,19 @@ class IAdapter {
 
   /**
    * search for role
-   * @param  {String}  role
+   * @param  {string}  role
    * @return {Promise<object|undefined>} return found roles object (undefined if nothing was found)
    */
   async searchRole (role) {
+    throw new Error()
+  }
+
+  /**
+   * search by sn
+   * @param {string} sn
+   * @return { Promise < object | undefined >} return found object matching sn
+   */
+  async searchSn (sn) {
     throw new Error()
   }
 
@@ -61,8 +70,8 @@ class IAdapter {
 
   /**
    * verify password for username
-   * @param  {String}  username
-   * @param  {String}  password
+   * @param  {string}  username
+   * @param  {string}  password
    * @return {Promise<boolean>} true if password is valid
    */
   async verifyPassword (username, password) {
@@ -71,8 +80,8 @@ class IAdapter {
 
   /**
    * update password for username
-   * @param  {String}  username
-   * @param  {String}  newPassword
+   * @param  {string}  username
+   * @param  {string}  newPassword
    * @return {Promise}
    */
   async updatePassword (username, newPassword) {
@@ -82,7 +91,7 @@ class IAdapter {
   /**
    * updates user attributes
    * attribute keys arrive in lowercase from keycloak
-   * @param {String} username
+   * @param {string} username
    * @param {object} attributes
    * @return {Promise}
    */
@@ -92,7 +101,7 @@ class IAdapter {
 
   /**
    * register new user with username
-   * @param  {String}  username
+   * @param  {string|undefined}  username
    * @return {Promise}
    */
   async register (username) {
@@ -101,7 +110,8 @@ class IAdapter {
 
   /**
    * insert or update mfa code into db
-   * @param {MfaCodeEntity} mfa
+   * @param {object} mfa
+   * @returns {Promise}
    */
   async upsertMfa (mfa) {
     throw new Error()
@@ -109,7 +119,8 @@ class IAdapter {
 
   /**
    * search for mfa code by recipient
-   * @param {String} recipient
+   * @param {string} recipient
+   * @returns {Promise}
    */
   async searchMfa (recipient) {
     throw new Error()
@@ -117,7 +128,8 @@ class IAdapter {
 
   /**
    * delete mfa code by recipient
-   * @param {String} recipient
+   * @param {string} recipient
+   * @returns {Promise}
    */
   async removeMfa (recipient) {
     throw new Error()

@@ -1890,7 +1890,7 @@
             "-1"
           ],
           "importEnabled": [
-            "false"
+            "true"
           ],
           "pagination": [
             "false"
@@ -2259,8 +2259,8 @@
   "failureFactor": 30,
   "groups": [],
   "id": "my",
-  "internationalizationEnabled": false,
-  "keycloakVersion": "12.0.4",
+  "internationalizationEnabled": true,
+  "keycloakVersion": "15.0.2",
   "loginWithEmailAllowed": true,
   "maxDeltaTimeSeconds": 43200,
   "maxFailureWaitSeconds": 900,

@@ -1,5 +1,7 @@
 const debugLevel = require('debug-level')
 
-const log = (name, opts) => debugLevel.log(`keycloak-ldap:${name}`, opts)
+const namespace = val => ['keycloak-ldap', val].filter(Boolean).join(':')
+
+const log = (name, opts) => debugLevel.log(namespace(name), opts)
 
 module.exports = { log }

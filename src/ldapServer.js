@@ -13,14 +13,20 @@ const {
 const { createLdapUserMap, LdapUserMapper } = require('./LdapUserMapper.js')
 const { MSAD_ERR_INVALID_PASSWORD } = require('./constants.js')
 
+/** @typedef {import('./Suffix').Suffix} Suffix */
+/** @typedef {import('./adapter/index').IAdapter} Adapter */
+/** @typedef {import('./types').LDAPRequest} LDAPRequest */
+/** @typedef {import('./types').LDAPResult} LDAPResult */
+
 /**
  * ldap Server
  * @param {object} param0
- * @param {string} param0.bindDN - bind distinguished name (admin username)
- * @param {string} param0.bindPassword - password of bind distinguished name
- * @param {Suffix} param0.suffix - suffix for users and roles
+ * @param {string} param0.bindDN bind distinguished name (admin username)
+ * @param {string} param0.bindPassword password of bind distinguished name
+ * @param {Suffix} param0.suffix suffix for users and roles
+ * @param {object} param0.mapper custom attribute mapper
  * @param {Adapter} adapter - data adapter
- * @return {LdapServer}
+ * @return {any} ldap.createServer
  */
 function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
   const suffixUsers = suffix.suffixUsers()
@@ -31,12 +37,13 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
 
   /**
    * authorize middleware
-   * @param {Request} req
-   * @param {Response} res
+   * @param {LDAPRequest} req
+   * @param {LDAPResult} res
    * @param {Function} next
    */
   function authorizeMw (req, res, next) {
     let err
+    // @ts-ignore
     if (!req.connection.ldap.bindDN.equals(bindDN)) {
       log.error('InsufficientAccessRightsError for %s', bindDN)
       err = new ldap.InsufficientAccessRightsError()
@@ -46,8 +53,8 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
 
   /**
    * bind middleware
-   * @param {Request} req
-   * @param {Response} res
+   * @param {LDAPRequest} req
+   * @param {LDAPResult} res
    * @param {Function} next
    */
   function bindMw (req, res, next) {
@@ -63,8 +70,8 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
 
   /**
    * search middleware
-   * @param {Request} req
-   * @param {Response} res
+   * @param {LDAPRequest} req
+   * @param {LDAPResult} res
    * @param {Function} next
    */
   async function searchMw (req, res, next) {
@@ -81,9 +88,9 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
         const user = await adapter.searchUsername(username)
         if (user) {
           log.info('searchMw user %s found', username)
-          const ldap = new LdapUserMapper(ldapUserMap, user).toLdap(req.attributes)
-          log.debug(ldap)
-          res.send(ldap)
+          const ldapData = new LdapUserMapper(ldapUserMap, user).toLdap(req.attributes)
+          log.debug(ldapData)
+          res.send(ldapData)
         } else {
           log.warn('searchMw user %s not found', username)
         }
@@ -92,9 +99,9 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
         const user = await adapter.searchMail(filtered.mail)
         if (user && user[attrUsername]) {
           log.info('searchMw user %s found by email %s', user[attrUsername], filtered.mail)
-          const ldap = new LdapUserMapper(ldapUserMap, user).toLdap(req.attributes)
-          log.debug(ldap)
-          res.send(ldap)
+          const ldapData = new LdapUserMapper(ldapUserMap, user).toLdap(req.attributes)
+          log.debug(ldapData)
+          res.send(ldapData)
         } else {
           log.warn('searchMw email %s not found', filtered.mail)
         }
@@ -107,22 +114,28 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
             user[attrUsername],
             filtered.mail
           )
-          const ldap = new LdapUserMapper(ldapUserMap, user).toLdap(
-            req.attributes
-          )
-          log.debug(ldap)
-          res.send(ldap)
+          const ldapData = new LdapUserMapper(ldapUserMap, user).toLdap(req.attributes)
+          log.debug(ldapData)
+          res.send(ldapData)
         } else {
           log.warn('searchMw objectguid %s not found', filtered.mail)
         }
+      } else if (filtered.sn) {
+        // optional search by subjectname
+        const users = await adapter.searchSn(filtered.sn)
+        users.forEach((user) => {
+          const ldapData = new LdapUserMapper(ldapUserMap, user).toLdap(req.attributes)
+          log.debug(ldapData)
+          res.send(ldapData)
+        })
       } else if (filtered.objectclass === 'group') {
         // search by group
         log.debug('%j', req)
         const roles = await adapter.syncAllRoles()
         roles.forEach((role) => {
-          const ldap = roleToLdap(role)
-          log.debug(ldap)
-          res.send(ldap)
+          const ldapData = roleToLdap(role, { suffix })
+          log.debug(ldapData)
+          res.send(ldapData)
         })
       } else if (username === '') {
         // NOOP
@@ -144,8 +157,8 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
 
   /**
    * called when user tries to log in
-   * @param {Request} req
-   * @param {Response} res
+   * @param {LDAPRequest} req
+   * @param {LDAPResult} res
    * @param {Function} next
    */
   async function loginMw (req, res, next) {
@@ -171,8 +184,8 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
 
   /**
    * update user attributes and password
-   * @param {Request} req
-   * @param {Response} res
+   * @param {LDAPRequest} req
+   * @param {LDAPResult} res
    * @param {Function} next
    */
   async function modifyMw (req, res, next) {
@@ -197,7 +210,7 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
 
       let attributes = null
 
-      for (var i = 0; i < req.changes.length; i++) {
+      for (let i = 0; i < req.changes.length; i++) {
         const mod = get(req, ['changes', i, 'modification'], {})
         const operation = get(req, ['changes', i, 'operation'])
 
@@ -247,7 +260,7 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
 
       res.end()
       next()
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       const msg = (
         (newPassword)
           ? MSAD_ERR_INVALID_PASSWORD
@@ -261,8 +274,8 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
 
   /**
    * register new user middleware
-   * @param {Request} req
-   * @param {Response} res
+   * @param {LDAPRequest} req
+   * @param {LDAPResult} res
    * @param {Function} next
    */
   async function registerMw (req, res, next) {
@@ -292,8 +305,8 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
 
   /**
    * search for available roles middleware
-   * @param {Request} req
-   * @param {Response} res
+   * @param {LDAPRequest} req
+   * @param {LDAPResult} res
    * @param {Function} next
    */
   async function searchRolesMw (req, res, next) {
@@ -304,13 +317,13 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
     const role = await adapter.searchRole(cn)
     if (role) {
       log.info('searchRolesMw role %s found', role)
-      const ldap = {
+      const ldapData = {
         dn: suffix.suffixRoles(),
         attributes: {
           cn
         }
       }
-      res.send(ldap)
+      res.send(ldapData)
     } else {
       log.warn('searchRolesMw role %s not found', filtered.cn)
     }
@@ -320,8 +333,8 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
 
   /**
    * modify roles middleware - TODO
-   * @param {Request} req
-   * @param {Response} res
+   * @param {LDAPRequest} req
+   * @param {LDAPResult} res
    * @param {Function} next
    */
   async function modifyRolesMw (req, res, next) {

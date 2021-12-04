@@ -9,7 +9,19 @@ const { SMTPServer } = require('smtp-server')
 
 const debug = require('debug')
 
-// logger with levels
+/**
+ * @typedef {object} Log
+ * @property {Function} error
+ * @property {Function} warn
+ * @property {Function} info
+ * @property {Function} debug
+ */
+
+/**
+ * logger with levels
+ * @type {Log} log
+ */
+// @ts-ignore
 const log = (function log () {
   const MAXLEVEL = 'ERROR'
   let isMaxLevel = false
@@ -25,9 +37,11 @@ const log = (function log () {
 })()
 
 function authorizeUser (auth, session, callback) {
-  var err = null
-  var result = null
+  let err = null
+  let result = null
+  // @ts-ignore
   if (auth.username in this.options.users) {
+    // @ts-ignore
     const { uid, password } = this.options.users[auth.username]
     if (auth.method === 'CRAM-MD5') {
       if (auth.validatePassword(password)) {
@@ -80,7 +94,7 @@ Paperbox.prototype.listen = function () {
 }
 
 Paperbox.prototype.addMTAFields = function (mail) {
-  var now = new Date()
+  const now = new Date()
   mail.received = now
 }
 
@@ -95,10 +109,11 @@ Paperbox.prototype.onMailSaved = function (err, mailId) {
 async function processMailData (stream, session, callback) {
   log.debug('processMailData() - start')
   log.debug('  session = ', session)
-  var mboxes = session.envelope.rcptTo.map(function (x) { return x.address })
+  const mboxes = session.envelope.rcptTo.map(function (x) { return x.address })
   const parsed = await simpleParser(stream)
+  // @ts-ignore
   this.addMTAFields(parsed)
-  for (var i = 0; i < mboxes.length; i++) {
+  for (let i = 0; i < mboxes.length; i++) {
     log.info('save mail to [' + mboxes[i] + ']')
     const { text, to, from } = parsed
     console.log(mboxes[i], { text, to, from })

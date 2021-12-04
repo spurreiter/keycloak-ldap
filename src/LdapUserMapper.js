@@ -4,6 +4,8 @@ const {
 } = require('./constants.js')
 const { toNumber } = require('./utils.js')
 
+/** @typedef {import('./Suffix').Suffix } Suffix */
+
 /**
  * attribute mapper
  * LDAP-name (all in lowercase!) <-> field from user-model
@@ -65,7 +67,7 @@ const INTERVAL_TIME = [
 /**
  * @see https://www.epochconverter.com/ldap
  * @param {Date|string|number} date
- * @return {string}
+ * @return {string|undefined}
  */
 function toLdapTimestamp (date) {
   if (date === undefined) return
@@ -126,16 +128,16 @@ const normalizeAttribute = (attr, value) => {
 
 /**
  * @typedef {object} LdapUserMap
- * @property {Suffix} suffix - user and roles suffix instance
- * @property {object} mapper - attribute mapper for storage
- * @property {object} mapperToLdap - attribute mapper for LDAP proto
+ * @property {Suffix} suffix user and roles suffix instance
+ * @property {object} mapper attribute mapper for storage
+ * @property {object} mapperToLdap attribute mapper for LDAP proto
  */
 
 /**
  * create ldap user map
  * @param {object} param0
- * @param {Suffix} param0.suffix - instance of Suffix
- * @param {object} param0.mapper - custom mapper object
+ * @param {Suffix} param0.suffix instance of Suffix
+ * @param {object} param0.mapper custom mapper object
  * @return {LdapUserMap}
  */
 function createLdapUserMap ({ suffix, mapper = {} }) {
@@ -159,10 +161,13 @@ class LdapUserMapper {
   /**
    * @constructor
    * @throws {TypeError} if user is not an object
-   * @param {LdapUserMap} ldapUserMap - result from createLdapUserMap()
-   * @param {object} [user] - user object
+   * @param {LdapUserMap} ldapUserMap result from createLdapUserMap()
+   * @param {object} [user] user object
    */
   constructor (ldapUserMap, user = {}) {
+    this.mapper = undefined
+    this.mapperToLdap = undefined
+    this.suffix = undefined
     Object.assign(this, ldapUserMap, { user })
     this._checkType()
   }
@@ -189,7 +194,7 @@ class LdapUserMapper {
    * set user from database
    * @throws {TypeError}
    * @param {object} user
-   * @param {this}
+   * @returns {this}
    */
   set (user) {
     this.user = user
@@ -215,12 +220,13 @@ class LdapUserMapper {
   /**
    * get ldap user object
    * @param {string[]} attributes - required attributes
-   * @return {[type]}
+   * @return {object} mapped ldap object
    */
   toLdap (attributes) {
     const hasAttributes = attributes && attributes.length
     const user = Object.entries(this.user).reduce((o, [key, val]) => {
       const attr = this.mapperToLdap[key] || key
+
       if (hasAttributes && attr !== 'cn' && !attributes.includes(attr)) {
         return o
       }
@@ -236,9 +242,12 @@ class LdapUserMapper {
     }, {})
 
     // omit userpassword in LDAP response
+    // @ts-ignore
     const { _id, userpassword, memberof, ...rest } = user
+    // @ts-ignore
     const { cn } = user
     if (memberof) {
+      // @ts-ignore
       rest.memberof = memberof.map(group => this.suffix.suffixRoles(group))
     }
     const ldap = {

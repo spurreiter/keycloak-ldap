@@ -80,10 +80,10 @@ describe('mfaRouter', function () {
       email,
       code: cache.code
     })
-      .expect(500, {
-        error: 'server_error',
+      .expect(400, {
+        error: 'Nonce missing',
         requestId: '1234567890',
-        status: 500
+        status: 400
       })
   })
 

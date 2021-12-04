@@ -1,5 +1,5 @@
 const {
-  KEYCLOAK_VERSION = '13.0.0',
+  KEYCLOAK_VERSION = '15.0.2',
   KEYCLOAK_USER,
   KEYCLOAK_PASSWORD
 } = process.env
