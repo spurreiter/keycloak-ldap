@@ -10,8 +10,8 @@ const {
   // userToLdap,
   roleToLdap
 } = require('./utils.js')
-const { createLdapUserMap, LdapUserMapper } = require('./LdapUserMapper.js')
-const { MSAD_ERR_INVALID_PASSWORD } = require('./constants.js')
+const { createLdapUserMap, decodeGuid, LdapUserMapper, toLdapBinaryUuid } = require('./LdapUserMapper.js')
+const { MSAD_ERR_INVALID_PASSWORD, ADS_UF_ACCOUNTDISABLE } = require('./constants.js')
 
 /** @typedef {import('./Suffix').Suffix} Suffix */
 /** @typedef {import('./adapter/index').IAdapter} Adapter */
@@ -107,18 +107,24 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
         }
       } else if (filtered.objectguid) {
         // search by objectguid
-        const user = await adapter.searchGuid(filtered.objectguid)
+        const guid = decodeGuid(filtered.objectguid)
+        const user = await adapter.searchGuid(guid)
         if (user && user[attrUsername]) {
           log.info(
             'searchMw user %s found by objectguid %s',
             user[attrUsername],
-            filtered.mail
+            guid
           )
           const ldapData = new LdapUserMapper(ldapUserMap, user).toLdap(req.attributes)
           log.debug(ldapData)
           res.send(ldapData)
         } else {
-          log.warn('searchMw objectguid %s not found', filtered.mail)
+          log.warn('searchMw objectguid %s not found', guid, req.dn.toString())
+          // mark the account as being disabled to avoid identity provider error
+          const ldapData = new LdapUserMapper(ldapUserMap,
+            { objectGUID: guid, useraccountcontrol: ADS_UF_ACCOUNTDISABLE }
+          ).toLdap(req.attributes)
+          res.send(ldapData)
         }
       } else if (filtered.sn) {
         // optional search by subjectname

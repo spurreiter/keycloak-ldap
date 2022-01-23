@@ -5,7 +5,8 @@ const {
   toLdapInterval,
   toLdapBinaryUuid,
   LdapUserMapper,
-  createLdapUserMap
+  createLdapUserMap,
+  decodeGuid
 } = require('../src/LdapUserMapper.js')
 const {
   ADS_UF_NORMAL_ACCOUNT,
@@ -236,6 +237,21 @@ describe('LdapUserMapper', function () {
         0x34
       ])
       assert.deepStrictEqual(buf, exp)
+    })
+  })
+
+  describe('decodeGuid', function () {
+    it('shall decode uuid from alice', function () {
+      const objectGuid = '\\a6\\d7\\c0\\bc\\6e\\d8\\e5\\42\\98\\c6\\2a\\d2\\2f\\2d\\38\\bd'
+      const exp = 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd'
+      const res = decodeGuid(objectGuid)
+      assert.strictEqual(res, exp)
+    })
+    it('shall decode uuid with leading zeros', function () {
+      const objectGuid = '\\00\\00\\00\\00\\01\\00\\00\\40\\98\\c6\\2a\\d2\\2f\\2d\\38\\bd'
+      const exp = '00000000-0001-4000-98c6-2ad22f2d38bd'
+      const res = decodeGuid(objectGuid)
+      assert.strictEqual(res, exp)
     })
   })
 })

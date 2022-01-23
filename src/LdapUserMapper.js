@@ -101,6 +101,21 @@ function toLdapBinaryUuid (uuid) {
   return buf
 }
 
+function decodeGuid (objectGuid) {
+  const guid = objectGuid.split('\\')
+  guid.shift()
+
+  const uuid = [
+    guid[3], guid[2], guid[1], guid[0], '-',
+    guid[5], guid[4], '-',
+    guid[7], guid[6], '-',
+    guid[8], guid[9], '-',
+    guid[10], guid[11], guid[12], guid[13], guid[14], guid[15]
+  ].join('')
+
+  return uuid
+}
+
 /**
  * normalize attribute before update
  * @param  {string} attr - attribute
@@ -265,6 +280,7 @@ class LdapUserMapper {
 
 module.exports = {
   createLdapUserMap,
+  decodeGuid,
   LdapUserMapper,
   toLdapTimestamp,
   toLdapInterval,

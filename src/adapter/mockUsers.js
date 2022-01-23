@@ -11,6 +11,7 @@ const users = [
   // object keys shall be lowercase!
   {
     objectGUID: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd', // same as uid
+    // objectGUID: '00000000-0001-4000-98c6-2ad22f2d38bd', // same as uid
     whenCreated: new Date('2020-10-01T12:00:00+00:00').getTime(),
     whenChanged: 0,
     username: 'alice',
