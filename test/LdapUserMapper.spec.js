@@ -1,9 +1,10 @@
 const assert = require('assert')
 const { Suffix } = require('../src/Suffix.js')
+const { toLdapBinaryUuid } = require('../src/binaryUuid.js')
 const {
   toLdapTimestamp,
   toLdapInterval,
-  toLdapBinaryUuid, LdapUserMapper,
+  LdapUserMapper,
   createLdapUserMap
 } = require('../src/LdapUserMapper.js')
 const {
@@ -56,6 +57,8 @@ describe('LdapUserMapper', function () {
     const cache = {}
 
     const user = {
+      sAMAccountName: 'alice',
+      userPrincipalName: 'alice@example.local',
       objectGUID: 'bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd',
       createdAt: new Date('2020-10-01T12:00:00+00:00').getTime(),
       updatedAt: new Date('2020-11-01T12:00:00+00:00').getTime(),
@@ -98,21 +101,22 @@ describe('LdapUserMapper', function () {
         {
           dn: 'cn=alice,cn=Users,dc=example,dc=local',
           attributes: {
-            samaccountname: 'alice',
+            sAMAccountName: 'alice',
+            userPrincipalName: 'alice@example.local',
             cn: 'alice',
-            objectguid: toLdapBinaryUuid('bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd'),
-            whencreated: '20201001120000Z',
-            whenchanged: '20201101120000Z',
-            givenname: 'Alice',
+            objectGUID: toLdapBinaryUuid('bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd'),
+            whenCreated: '20201001120000Z',
+            whenChanged: '20201101120000Z',
+            givenName: 'Alice',
             sn: 'Adams',
             mail: 'alice.adams@my.local',
             mobile: '+1180180180',
             oid: '8cbe965e-5481-470b-9388-8d8bf169efc5',
-            useraccountcontrol: 512,
-            pwdlastset: -1,
-            emailverified: true,
-            accountexpires: 132512976000000,
-            memberof: [
+            userAccountControl: 512,
+            pwdLastSet: -1,
+            emailVerified: true,
+            accountExpires: 132512976000000,
+            memberOf: [
               'cn=test:read,ou=Roles,dc=example,dc=local',
               'cn=test:write,ou=Roles,dc=example,dc=local'
             ]
@@ -129,6 +133,7 @@ describe('LdapUserMapper', function () {
         'whencreated',
         'givenname',
         'sn',
+        'sAMAccountName',
         'mail',
         'useraccountcontrol',
         'pwdlastset',
@@ -140,16 +145,16 @@ describe('LdapUserMapper', function () {
         {
           dn: 'cn=alice,cn=Users,dc=example,dc=local',
           attributes: {
-            samaccountname: 'alice',
+            sAMAccountName: 'alice',
             cn: 'alice',
-            objectguid: toLdapBinaryUuid('bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd'),
-            whencreated: '20201001120000Z',
-            givenname: 'Alice',
+            objectGUID: toLdapBinaryUuid('bcc0d7a6-d86e-42e5-98c6-2ad22f2d38bd'),
+            whenCreated: '20201001120000Z',
+            givenName: 'Alice',
             sn: 'Adams',
             mail: 'alice.adams@my.local',
-            useraccountcontrol: 512,
-            pwdlastset: -1,
-            memberof: [
+            userAccountControl: 512,
+            pwdLastSet: -1,
+            memberOf: [
               'cn=test:read,ou=Roles,dc=example,dc=local',
               'cn=test:write,ou=Roles,dc=example,dc=local'
             ]
@@ -160,7 +165,12 @@ describe('LdapUserMapper', function () {
 
     it('shall convert it back', function () {
       const ldapUserMap = createLdapUserMap({ suffix })
-      const res = new LdapUserMapper(ldapUserMap).update(cache.ldap.attributes).get()
+      const lcAttributes = Object.entries(cache.ldap.attributes).reduce((o, [key, val]) => {
+        o[key.toLowerCase()] = val
+        return o
+      }, {})
+
+      const res = new LdapUserMapper(ldapUserMap).update(lcAttributes).get()
 
       assert.deepStrictEqual(res, {
         username: 'alice',
@@ -203,32 +213,6 @@ describe('LdapUserMapper', function () {
         userAccountControl: 512,
         pwdLastSet: 0
       })
-    })
-  })
-
-  describe('toLdapBinaryUuid', function () {
-    it('can convert a uuid to ldap binary buffer', function () {
-      const uuid = 'f17beb47-7ab2-445b-97df-864e118d9d34'
-      const buf = toLdapBinaryUuid(uuid)
-      const exp = Buffer.from([
-        0x47,
-        0xeb,
-        0x7b,
-        0xf1,
-        0xb2,
-        0x7a,
-        0x5b,
-        0x44,
-        0x97,
-        0xdf,
-        0x86,
-        0x4e,
-        0x11,
-        0x8d,
-        0x9d,
-        0x34
-      ])
-      assert.deepStrictEqual(buf, exp)
     })
   })
 })

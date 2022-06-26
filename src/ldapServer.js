@@ -37,6 +37,7 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
    */
   function authorizeMw (req, res, next) {
     let err
+
     if (!req.connection.ldap.bindDN.equals(bindDN)) {
       log.error('InsufficientAccessRightsError for %s', bindDN)
       err = new ldap.InsufficientAccessRightsError()
@@ -179,7 +180,7 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
     let newPassword
 
     try {
-      // log.debug('modifyMw %j %j', req.dn, req.changes)
+      log.debug('modifyMw %j %j', req.dn, req.changes)
       const username = getUsernameFromReq(req, 'cn') || getUsernameFromReq(req, 'samaccountname')
 
       if (!username) {

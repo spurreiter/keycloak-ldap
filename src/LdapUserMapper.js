@@ -3,44 +3,48 @@ const {
   PWD_UPDATE_ON_NEXT_LOGIN
 } = require('./constants.js')
 const { toNumber } = require('./utils.js')
+const { toLdapBinaryUuid } = require('./binaryUuid.js')
 
 /**
  * attribute mapper
+ * @see https://ldapwiki.com
  * LDAP-name (all in lowercase!) <-> field from user-model
  * see server-spi-private/src/main/java/org/keycloak/models/LDAPConstants.java
  */
 const attributeMapper = {
-  objectguid: 'objectGUID', // read only
-  whencreated: 'createdAt', // creation time stamp
-  whenchanged: 'updatedAt', // update time stamp
+  userPrincipalName: 'userPrincipalName',
+  objectGUID: 'objectGUID', // read only
+  whenCreated: 'createdAt', // creation time stamp
+  whenChanged: 'updatedAt', // update time stamp
   // user-data
   uid: 'uid',
   cn: 'username',
-  givenname: 'firstName',
+  givenName: 'firstName',
   sn: 'name',
-  middlename: 'middleName',
-  nickname: 'nickName',
+  middleName: 'middleName',
+  nickName: 'nickName',
   gender: 'gender',
-  preferredlanguage: 'language',
+  preferredLanguage: 'language',
   timezone: 'timezone',
-  memberof: 'memberOf',
+  memberOf: 'memberOf',
   oid: 'orgId', // organisation Id - non-standard
-  dateofbirth: 'dateOfBirth', // YYYY-MM-DD
+  dateOfBirth: 'dateOfBirth', // YYYY-MM-DD
   // devices
   mail: 'mail',
-  emailverified: 'emailVerified', // non-standard
+  emailVerified: 'emailVerified', // non-standard
   mobile: 'mobile',
-  mobileverified: 'mobileVerified',
+  mobileVerified: 'mobileVerified',
   // account-data
-  useraccountcontrol: 'userAccountControl',
-  userpassword: 'userPassword', // (hashed) user password
-  pwdlastset: 'pwdLastSet',
-  badpasswordtime: 'badPasswordTime', // interval
-  badpwdcount: 'badPwdCount',
-  accountexpires: 'accountExpiresAt' // interval
+  userAccountControl: 'userAccountControl',
+  userPassword: 'userPassword', // (hashed) user password
+  pwdLastSet: 'pwdLastSet',
+  badPasswordTime: 'badPasswordTime', // interval
+  badPwdCount: 'badPwdCount',
+  accountExpires: 'accountExpiresAt' // interval
 }
 
 const READONLY_ATTRS = [
+  'userprincipalname',
   'objectguid',
   'samaccountname',
   'whencreated',
@@ -83,30 +87,14 @@ function toLdapInterval (date) {
   return ts
 }
 
-function toLdapBinaryUuid (uuid) {
-  const hex = String(uuid).replace(/-/g, '')
-  if (hex.length !== 32) {
-    throw new Error('not a uuid')
-  }
-  const m = [3, 2, 1, 0, 5, 4, 7, 6]
-  const a = new Array(16)
-  for (let i = 0; i < 16; i++) {
-    const n = parseInt(hex.substr(i * 2, 2), 16)
-    const p = m[i] ?? i
-    a[p] = n
-  }
-  const buf = Buffer.from(a)
-  return buf
-}
-
 /**
  * normalize attribute before update
- * @param  {string} attr - attribute
+ * @param  {string} attr - lowercase attribute
  * @param  {any} value - value which may need normalization
  * @return {any} normalized value
  */
 const normalizeAttribute = (attr, value) => {
-  switch (attr) {
+  switch (attr.toLowerCase()) {
     case 'mobileverified':
     case 'emailverified': {
       value = value !== 'false'
@@ -139,16 +127,37 @@ const normalizeAttribute = (attr, value) => {
  * @return {LdapUserMap}
  */
 function createLdapUserMap ({ suffix, mapper = {} }) {
+  // merged attribute mapper
   const _mapper = Object.assign({}, attributeMapper, mapper)
-  const mapperToLdap = Object.entries(_mapper).reduce((o, [key, val]) => {
-    o[val] = key
+  // reversed mapings for ldap
+  const ldapMapper = Object.entries(_mapper).reduce((o, [ldapA, userA]) => {
+    o[userA] = ldapA.toLowerCase()
+    return o
+  }, {})
+  // need case mapper as req.attributes is always in lowercase
+  const caseMapper = Object.keys(_mapper).reduce((o, ldapA) => {
+    o[ldapA.toLowerCase()] = ldapA
     return o
   }, {})
 
+  const ldapAttrFromLc = (lcA) => {
+    const ldapA = caseMapper[lcA.toLowerCase()] || lcA
+    return ldapA
+  }
+  const userAttrFromLc = (lcA) => {
+    const ldapA = ldapAttrFromLc(lcA)
+    return _mapper[ldapA] || lcA
+  }
+  const lcAttrFromUser = (userA) => {
+    const lcA = ldapMapper[userA] || userA
+    return lcA
+  }
+
   return {
     suffix,
-    mapper: _mapper,
-    mapperToLdap
+    ldapAttrFromLc,
+    userAttrFromLc,
+    lcAttrFromUser
   }
 }
 
@@ -199,14 +208,14 @@ class LdapUserMapper {
 
   /**
    * update ldap attributes
-   * @param {object} ldapAttributes
+   * @param {object} ldapAttributes - lower cased ldap attributes
    * @param {boolean} [ignoreReadonly] - do not filter readonly values
    * @return {this}
    */
   update (ldapAttributes, ignoreReadonly) {
     Object.entries(ldapAttributes).forEach(([attr, val]) => {
       if (!ignoreReadonly && READONLY_ATTRS.includes(attr)) return
-      const key = this.mapper[attr] || attr
+      const key = this.userAttrFromLc(attr)
       this.user[key] = normalizeAttribute(attr, val)
     })
     return this
@@ -214,39 +223,47 @@ class LdapUserMapper {
 
   /**
    * get ldap user object
-   * @param {string[]} attributes - required attributes
+   * @param {string[]} attributes - required attributes (in lowercase!)
    * @return {[type]}
    */
   toLdap (attributes) {
     const hasAttributes = attributes && attributes.length
-    const user = Object.entries(this.user).reduce((o, [key, val]) => {
-      const attr = this.mapperToLdap[key] || key
-      if (hasAttributes && attr !== 'cn' && !attributes.includes(attr)) {
+    const lcAttributes = hasAttributes ? attributes.map(attr => attr.toLowerCase()) : []
+    const user = Object.entries(this.user).reduce((o, [userA, val]) => {
+      const lcA = this.lcAttrFromUser(userA)
+      if (hasAttributes && lcA !== 'cn' && !lcAttributes.includes(lcA)) {
         return o
       }
-      if (attr === 'objectguid') {
+      if (lcA === 'objectguid') {
         val = toLdapBinaryUuid(val)
-      } else if (GENERALIZED_TIME.includes(attr)) {
+      } else if (GENERALIZED_TIME.includes(lcA)) {
         val = toLdapTimestamp(val)
-      } else if (INTERVAL_TIME.includes(attr)) {
+      } else if (INTERVAL_TIME.includes(lcA)) {
         val = toLdapInterval(val)
       }
-      o[attr] = val
+      const ldapA = this.ldapAttrFromLc(lcA)
+      o[ldapA] = val
       return o
     }, {})
 
+    if (lcAttributes.includes('samaccountname')) {
+      user.sAMAccountName = user.cn
+    }
+    if (lcAttributes.includes('userprincipalname')) {
+      user.userPrincipalName = `${user.cn}@${this.suffix.dc}`
+    }
+
     // omit userpassword in LDAP response
-    const { _id, userpassword, memberof, ...rest } = user
+    const { _id, userPassword, memberOf, ...attrs } = user
     const { cn } = user
-    if (memberof) {
-      rest.memberof = memberof.map(group => this.suffix.suffixRoles(group))
+    if (memberOf) {
+      attrs.memberOf = memberOf.map(group => this.suffix.suffixRoles(group))
     }
     const ldap = {
       dn: this.suffix.suffixUsers(cn), // `cn=${username},${suffix}`,
       attributes: {
-        samaccountname: cn,
         cn: cn,
-        ...rest
+        ...attrs
       }
     }
 
