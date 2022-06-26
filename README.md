@@ -29,6 +29,9 @@ node scripts/import-realm.js
 npm run dev
 ```
 
+then open http://localhost:4000 and login
+
+
 ## multi-factor-authentication 
 
 `src/mfa` contains a express router to handle generation and sending of OTP codes. 

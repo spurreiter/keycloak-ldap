@@ -62,7 +62,7 @@ function mfaRouter ({ adapter, sendMfa, idProp = 'phoneNumber', idPropAlt = 'ema
 
   router.put('/', async (req, res, next) => {
     const destination = getDestination(req.body)
-    let { code, nonce } = req.body
+    const { code, nonce } = req.body
 
     // the nonce shall prevent accidental misconfiguration
     // it needs to be checked at the client as well.

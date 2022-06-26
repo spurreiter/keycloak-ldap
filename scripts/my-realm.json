@@ -1978,7 +1978,7 @@
                   "false"
                 ],
                 "ldap.attribute": [
-                  "preferredlanguage"
+                  "locale"
                 ],
                 "read.only": [
                   "true"

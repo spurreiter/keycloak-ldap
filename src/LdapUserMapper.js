@@ -24,7 +24,7 @@ const attributeMapper = {
   middleName: 'middleName',
   nickName: 'nickName',
   gender: 'gender',
-  preferredLanguage: 'language',
+  locale: 'locale',
   timezone: 'timezone',
   memberOf: 'memberOf',
   oid: 'orgId', // organisation Id - non-standard
@@ -42,6 +42,17 @@ const attributeMapper = {
   badPwdCount: 'badPwdCount',
   accountExpires: 'accountExpiresAt' // interval
 }
+/*
+  // other AD attributes (not covered here)
+  comment,
+  description,
+  displayName,
+  distinguishedName,
+  dn,
+  employeeId,
+  initials,
+  lockoutTime,
+*/
 
 const READONLY_ATTRS = [
   'userprincipalname',
@@ -131,6 +142,9 @@ function createLdapUserMap ({ suffix, mapper = {} }) {
   const _mapper = Object.assign({}, attributeMapper, mapper)
   // reversed mapings for ldap
   const ldapMapper = Object.entries(_mapper).reduce((o, [ldapA, userA]) => {
+    if (o[userA]) {
+      throw new Error(`user attribute "${userA}" can't be assigned on ldap attribute ${ldapA}`)
+    }
     o[userA] = ldapA.toLowerCase()
     return o
   }, {})

@@ -12,6 +12,7 @@ const {
 } = require('./utils.js')
 const { createLdapUserMap, LdapUserMapper } = require('./LdapUserMapper.js')
 const { MSAD_ERR_INVALID_PASSWORD } = require('./constants.js')
+const { binaryUuidToString } = require('./binaryUuid.js')
 
 /**
  * ldap Server
@@ -75,7 +76,7 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
       const username = filtered.samaccountname || filtered.cn
 
       log.debug('searchMw', { dn, filtered, attributes: req.attributes, username })
-      const attrUsername = ldapUserMap.mapper.cn
+      const attrUsername = ldapUserMap.userAttrFromLc('cn')
 
       if (username) {
         // search by username
@@ -101,7 +102,8 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
         }
       } else if (filtered.objectguid) {
         // search by objectguid
-        const user = await adapter.searchGuid(filtered.objectguid)
+        const guid = binaryUuidToString(filtered.objectguid)
+        const user = await adapter.searchGuid(guid)
         if (user && user[attrUsername]) {
           log.info(
             'searchMw user %s found by objectguid %s',
@@ -156,6 +158,8 @@ function ldapServer ({ bindDN, bindPassword, suffix, mapper }, adapter) {
       const username = getUsernameFromCn(dn)
 
       const isValid = await adapter.verifyPassword(username, req.credentials)
+
+      log.debug({ dn, username, isValid })
 
       if (!isValid) {
         log.error(`InvalidCredentialsError for ${username}`)

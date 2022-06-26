@@ -15,8 +15,8 @@ const {
  */
 class Account {
   /**
-   * @param {object} opts 
-   * @param {number} [opts.maxPwdAge] - max password age in milliSecs. Default is 90 days. 
+   * @param {object} opts
+   * @param {number} [opts.maxPwdAge] - max password age in milliSecs. Default is 90 days.
    */
   constructor (opts) {
     Object.assign(this, {
@@ -84,7 +84,7 @@ class Account {
     return user
   }
 
-  /** 
+  /**
    * password is valid, resets badPwdCount and sets lastLoginAt
    * @param {object} user
    * @returns {object} user

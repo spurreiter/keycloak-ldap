@@ -114,7 +114,7 @@ describe('Account', function () {
       }
       assert.deepStrictEqual(
         account.passwordResetNeeded({ ...user }),
-        { ...user, pwdLastSet: PWD_UPDATE_ON_NEXT_LOGIN }
+        { ...user, pwdLastSet: PWD_UPDATE_ON_NEXT_LOGIN }
       )
     })
     it('ADS_UF_PASSWORD_EXPIRED', function () {

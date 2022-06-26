@@ -22,7 +22,7 @@ function setup () {
     clientId: 'my-server',
     secret: undefined,
     public: true,
-    authServerUrl: 'http://localhost:8080/auth',
+    authServerUrl: 'http://localhost:8080/auth'
   })
 
   app.use(logger)

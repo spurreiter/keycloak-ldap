@@ -16,7 +16,18 @@ function toLdapBinaryUuid (uuid) {
   return buf
 }
 
+const strToBuf = str => {
+  const arr = String(str).split('\\').map(v => parseInt(v, 16))
+  arr.shift()
+  return Buffer.from(arr)
+}
+
 function binaryUuidToString (buf) {
+  if (typeof buf === 'string') {
+    // hack: some ldap connectors send the uuid as plain text
+    if (!/^[\\]/.test(buf) && buf.length === 36) return buf
+    buf = strToBuf(buf)
+  }
   const arr = []
   for (let i = 0; i < 16; i++) {
     const p = POS[i] ?? i
